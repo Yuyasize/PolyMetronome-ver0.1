@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>メトロノーム</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f4f2ee">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Metro">
+<meta name="color-scheme" content="light only">
+<meta name="supported-color-schemes" content="light">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#f4f2ee;--surface:#fff;--border:#ddd9d2;--text:#1a1a1a;--muted:#999;--dot-off:#eceae5;}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 14px 48px;gap:14px;}
+/* Safariのシステムカラー（青）をテキスト色で上書き */
+:root{color-scheme:light;}
+input[type=range]{accent-color:var(--text);}
+
+.top-bar{width:100%;max-width:480px;display:flex;align-items:center;justify-content:space-between;}
+.logo{font-family:‘DM Mono’,monospace;font-size:11px;font-weight:500;letter-spacing:3px;color:var(–muted);text-transform:uppercase;}
+.tabs{display:flex;border:1px solid var(–border);border-radius:8px;overflow:hidden;background:var(–dot-off);}
+.tab-btn{font-family:‘DM Mono’,monospace;font-size:11px;letter-spacing:1px;padding:7px 11px;border:none;background:transparent;color:var(–muted);cursor:pointer;transition:all 0.15s;}
+.tab-btn.active{background:var(–surface);color:var(–text);font-weight:500;}
+.tempo-name{font-family:‘DM Mono’,monospace;font-size:11px;color:var(–muted);min-width:80px;text-align:right;}
+
+/* BPM card (shared / simple) */
+.bpm-card{width:100%;max-width:480px;background:var(–surface);border:1px solid var(–border);border-radius:14px;padding:18px 20px 16px;display:flex;flex-direction:column;gap:12px;}
+.bpm-row{display:flex;align-items:baseline;justify-content:center;gap:8px;}
+.bpm-number{font-family:‘DM Mono’,monospace;font-size:76px;font-weight:300;line-height:1;letter-spacing:-3px;color:var(–text);user-select:none;cursor:text;transition:opacity 0.05s;min-width:200px;text-align:center;}
+.bpm-number.flash{opacity:0.22;}
+.bpm-number:hover{opacity:0.7;}
+.bpm-input-el{font-family:‘DM Mono’,monospace;font-size:76px;font-weight:300;line-height:1;letter-spacing:-3px;color:var(–text);background:transparent;border:none;border-bottom:2px solid var(–text);outline:none;width:200px;text-align:center;padding:0;}
+.bpm-unit{font-family:‘DM Mono’,monospace;font-size:12px;letter-spacing:2px;color:var(–muted);}
+.slider-header{display:flex;justify-content:space-between;font-size:11px;color:var(–muted);margin-bottom:5px;}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(–border);outline:none;cursor:pointer;border-radius:2px;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;background:var(–text);cursor:pointer;border-radius:50%;border:3px solid var(–surface);box-shadow:0 0 0 1.5px var(–text);}
+.bpm-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.bpm-btn{background:var(–surface);border:1px solid var(–border);color:var(–text);font-family:‘DM Mono’,monospace;font-size:11px;padding:8px 4px;cursor:pointer;border-radius:7px;transition:background 0.1s;}
+.bpm-btn:hover{background:var(–bg);}
+
+/* Action bar */
+.action-bar{width:100%;max-width:480px;display:grid;gap:7px;}
+.action-bar.simple{grid-template-columns:1fr 1fr;}
+.action-bar.poly{grid-template-columns:1fr 1fr 1fr;}
+.action-bar.pt{grid-template-columns:1fr 1fr;}
+.btn{font-family:‘DM Mono’,monospace;font-size:12px;letter-spacing:1px;padding:12px 8px;cursor:pointer;border-radius:10px;border:1px solid var(–border);background:var(–surface);color:var(–text);transition:all 0.1s;}
+.btn:hover{background:var(–bg);}
+.btn:active{transform:scale(0.97);}
+.btn-play{background:var(–text);border-color:var(–text);color:#fff;font-size:13px;letter-spacing:2px;}
+.btn-play:hover{opacity:0.82;background:var(–text);}
+.btn-play.playing{background:var(–surface);color:var(–text);border-color:var(–border);}
+
+/* Simple panel */
+#simplePanel{width:100%;max-width:480px;display:flex;flex-direction:column;gap:14px;}
+.simple-pend-card{background:var(–surface);border:1px solid var(–border);border-radius:14px;padding:14px 20px 12px;}
+.pendulum-wrap{height:60px;position:relative;display:flex;justify-content:center;}
+.pend-line{position:absolute;top:0;left:50%;width:1px;height:46px;background:#ccc;transform-origin:top center;transform:translateX(-50%);}
+.pend-ball{position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);width:13px;height:13px;border-radius:50%;background:var(–text);}
+.pend-line.go-left{animation:toLeft 0.08s ease-out forwards;}
+.pend-line.go-right{animation:toRight 0.08s ease-out forwards;}
+@keyframes toLeft{to{transform:translateX(-50%) rotate(-28deg);}}
+@keyframes toRight{to{transform:translateX(-50%) rotate(28deg);}}
+
+.simple-sub-card{background:var(–surface);border:1px solid var(–border);border-radius:14px;padding:14px 16px 12px;}
+.card-label{font-size:10px;color:var(–muted);letter-spacing:0.5px;margin-bottom:8px;}
+.sub-scroll{display:flex;gap:5px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+.sub-scroll::-webkit-scrollbar{display:none;}
+.sub-chip{flex-shrink:0;padding:6px 12px;border:1.5px solid var(–border);border-radius:20px;font-family:‘DM Mono’,monospace;font-size:11px;color:var(–muted);cursor:pointer;transition:all 0.1s;background:var(–dot-off);user-select:none;white-space:nowrap;}
+.sub-chip.active{border-color:var(–text);background:var(–text);color:#fff;}
+
+.simple-beat-card{background:var(–surface);border:1px solid var(–border);border-radius:14px;padding:14px 16px 12px;}
+.beat-grid{display:flex;flex-wrap:wrap;gap:5px;}
+.beat-cell{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.beat-btn{width:42px;height:42px;border-radius:9px;border:1.5px solid var(–border);background:var(–dot-off);font-family:‘DM Mono’,monospace;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all 0.1s;user-select:none;}
+.beat-icon{font-size:13px;line-height:1;color:#aaa;}
+.beat-idx{font-size:8px;color:var(–muted);}
+.beat-btn.s-accent{border-color:var(–text);background:var(–text);}
+.beat-btn.s-accent .beat-icon{color:#fff;}
+.beat-btn.s-normal{border-color:var(–border);background:var(–dot-off);}
+.beat-btn.s-mute{border-color:#e0ddd8;background:var(–surface);}
+.beat-btn.s-mute .beat-icon{color:#d0cdc8;}
+.beat-btn.sp-accent{border-color:#111;background:#111;box-shadow:0 0 0 3px rgba(0,0,0,0.15);}
+.beat-btn.sp-accent .beat-icon{color:#fff;}
+.beat-btn.sp-normal{background:#555;border-color:#555;box-shadow:0 0 0 3px rgba(0,0,0,0.1);}
+.beat-btn.sp-normal .beat-icon{color:#fff;}
+.beat-btn.sp-mute{background:#e5e3de;border-color:#ccc;}
+.beat-btn.sp-mute .beat-icon{color:#aaa;}
+.sdots{display:flex;gap:2px;}
+.sdot{width:5px;height:5px;border-radius:50%;background:var(–dot-off);border:1px solid var(–border);}
+.sdot.on{background:var(–text);border-color:var(–text);}
+.sdots.hidden{visibility:hidden;}
+.beat-count-row{display:flex;align-items:center;gap:8px;margin-top:10px;}
+.beat-count-label{font-size:10px;color:var(–muted);flex:1;}
+.cnt-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(–border);background:var(–surface);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:‘DM Mono’,monospace;color:var(–text);line-height:1;}
+.cnt-btn:hover{background:var(–bg);}
+.cnt-disp{font-family:‘DM Mono’,monospace;font-size:17px;font-weight:500;min-width:26px;text-align:center;}
+.beat-hint{font-size:10px;color:var(–muted);margin-top:6px;}
+
+/* Poly panel */
+#polyPanel{width:100%;max-width:480px;display:flex;flex-direction:column;gap:14px;}
+.viz-card{background:var(–surface);border:1px solid var(–border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden;}
+.viz-card-label{font-size:10px;color:var(–muted);letter-spacing:0.5px;}
+.viz-layer-row{display:flex;align-items:center;gap:8px;}
+.viz-layer-name{font-family:‘DM Mono’,monospace;font-size:10px;font-weight:500;width:18px;text-align:center;flex-shrink:0;}
+.viz-track{flex:1;height:32px;position:relative;border-radius:6px;background:var(–dot-off);overflow:hidden;}
+.viz-cell{position:absolute;top:0;height:100%;border-right:1px solid var(–bg);display:flex;align-items:center;justify-content:center;transition:background 0.06s;}
+.viz-cell.vc-accent{background:rgba(0,0,0,0.10);}
+.viz-cell.vc-normal{background:rgba(0,0,0,0.04);}
+.viz-cell.vc-mute{background:transparent;}
+.viz-cell.vc-playing-accent{background:var(–layer-color,#333);}
+.viz-cell.vc-playing-normal{background:var(–layer-color,#555);opacity:0.65;}
+.viz-cell.vc-playing-mute{background:transparent;}
+.viz-dot{width:7px;height:7px;border-radius:50%;background:rgba(255,255,255,0.9);pointer-events:none;}
+.viz-cell.vc-accent .viz-dot,.viz-cell.vc-normal .viz-dot{opacity:0;}
+.viz-cell.vc-playing-accent .viz-dot,.viz-cell.vc-playing-normal .viz-dot{opacity:1;}
+.viz-cell.vc-mute .viz-dot{display:none;}
+.viz-sub-tick{position:absolute;top:6px;bottom:6px;width:1px;background:rgba(0,0,0,0.08);pointer-events:none;}
+.viz-sub-tick.playing{background:rgba(255,255,255,0.5);}
+.poly-layers{display:flex;flex-direction:column;gap:10px;}
+.layer-card{background:var(–surface);border:1.5px solid var(–border);border-radius:14px;overflow:hidden;}
+.layer-header{display:flex;align-items:center;gap:9px;padding:10px 14px 8px;border-bottom:1px solid var(–border);}
+.layer-color-bar{width:3px;height:20px;border-radius:2px;flex-shrink:0;}
+.layer-title{font-family:‘DM Mono’,monospace;font-size:12px;font-weight:500;flex:1;letter-spacing:0.5px;}
+.layer-header-btns{display:flex;gap:5px;}
+.icon-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(–border);background:var(–surface);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(–muted);transition:all 0.1s;}
+.icon-btn:hover{background:var(–bg);color:var(–text);}
+.icon-btn.on{background:var(–text);color:#fff;border-color:var(–text);}
+.layer-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.poly-sub-scroll{display:flex;gap:4px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;}
+.poly-sub-scroll::-webkit-scrollbar{display:none;}
+.poly-sub-chip{flex-shrink:0;padding:5px 9px;border:1.5px solid var(–border);border-radius:16px;font-family:‘DM Mono’,monospace;font-size:10px;color:var(–muted);cursor:pointer;transition:all 0.1s;background:var(–dot-off);user-select:none;white-space:nowrap;}
+.poly-sub-chip.active{color:#fff;border-color:var(–layer-color);background:var(–layer-color);}
+.poly-beat-grid{display:flex;flex-wrap:wrap;gap:4px;}
+.poly-beat-cell{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.poly-beat-btn{width:36px;height:36px;border-radius:8px;border:1.5px solid var(–border);background:var(–dot-off);font-family:‘DM Mono’,monospace;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;transition:all 0.1s;user-select:none;}
+.poly-beat-btn .bi{font-size:12px;line-height:1;color:#aaa;}
+.poly-beat-btn .bx{font-size:8px;color:var(–muted);}
+.pb-accent{border-color:var(–layer-color);background:var(–layer-bg);}
+.pb-accent .bi{color:var(–layer-color);}
+.pb-mute{border-color:#e0ddd8;background:var(–surface);}
+.pb-mute .bi{color:#d0cdc8;}
+.pba-accent{background:var(–layer-color);border-color:var(–layer-color);box-shadow:0 0 0 3px var(–layer-shadow);}
+.pba-accent .bi{color:#fff;}
+.pba-accent .bx{color:rgba(255,255,255,0.7);}
+.pba-normal{background:var(–text);border-color:var(–text);}
+.pba-normal .bi{color:#fff;}
+.pba-normal .bx{color:rgba(255,255,255,0.6);}
+.pba-mute{background:#e5e3de;border-color:#ccc;}
+.pba-mute .bi{color:#aaa;}
+.poly-sdots{display:flex;gap:2px;}
+.poly-sdot{width:5px;height:5px;border-radius:50%;background:var(–dot-off);border:1px solid var(–border);transition:background 0.05s;}
+.poly-sdot.on{background:var(–layer-color);border-color:var(–layer-color);}
+.poly-sdots.hidden{visibility:hidden;}
+.poly-beat-count-row{display:flex;align-items:center;gap:8px;margin-top:2px;}
+.poly-count-label{font-size:10px;color:var(–muted);flex:1;}
+.add-layer-btn{width:100%;padding:11px;border:1.5px dashed var(–border);background:transparent;border-radius:12px;font-family:‘DM Mono’,monospace;font-size:11px;letter-spacing:1px;color:var(–muted);cursor:pointer;transition:all 0.12s;}
+.add-layer-btn:hover{border-color:var(–text);color:var(–text);}
+.hint{font-size:10px;color:var(–muted);text-align:center;}
+
+/* ═══════════════════════════
+POLYTEMPO PANEL
+═══════════════════════════ */
+#ptPanel{width:100%;max-width:480px;display:flex;flex-direction:column;gap:14px;}
+
+.pt-tracks{display:flex;flex-direction:column;gap:12px;}
+
+.pt-track{background:var(–surface);border:1.5px solid var(–border);border-radius:14px;overflow:hidden;}
+.pt-track-header{display:flex;align-items:center;gap:10px;padding:12px 16px 10px;border-bottom:1px solid var(–border);}
+.pt-color-bar{width:3px;height:22px;border-radius:2px;flex-shrink:0;}
+.pt-track-name{font-family:‘DM Mono’,monospace;font-size:12px;font-weight:500;flex:1;letter-spacing:0.5px;}
+.pt-mute-btn{width:26px;height:26px;border-radius:6px;border:1px solid var(–border);background:var(–surface);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(–muted);transition:all 0.1s;}
+.pt-mute-btn:hover{background:var(–bg);}
+.pt-mute-btn.on{background:var(–text);color:#fff;border-color:var(–text);}
+
+.pt-track-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
+
+/* BPM display per track */
+.pt-bpm-row{display:flex;align-items:center;gap:10px;}
+.pt-bpm-num{font-family:‘DM Mono’,monospace;font-size:52px;font-weight:300;line-height:1;letter-spacing:-2px;cursor:text;user-select:none;transition:opacity 0.05s;flex:1;text-align:center;}
+.pt-bpm-num:hover{opacity:0.7;}
+.pt-bpm-num.flash{opacity:0.2;}
+.pt-bpm-input{font-family:‘DM Mono’,monospace;font-size:52px;font-weight:300;line-height:1;letter-spacing:-2px;background:transparent;border:none;border-bottom:2px solid var(–text);outline:none;width:100%;text-align:center;padding:0;}
+.pt-bpm-unit{font-family:‘DM Mono’,monospace;font-size:11px;color:var(–muted);letter-spacing:2px;}
+
+.pt-slider-wrap{display:flex;flex-direction:column;gap:4px;}
+.pt-slider-header{display:flex;justify-content:space-between;font-size:10px;color:var(–muted);}
+
+.pt-adj-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+.pt-adj-btn{background:var(–surface);border:1px solid var(–border);color:var(–text);font-family:‘DM Mono’,monospace;font-size:11px;padding:7px 4px;cursor:pointer;border-radius:7px;transition:background 0.1s;}
+.pt-adj-btn:hover{background:var(–bg);}
+
+/* Beat indicator bar for polytempo */
+.pt-beat-bar{display:flex;gap:5px;flex-wrap:wrap;}
+.pt-beat-dot{width:16px;height:16px;border-radius:50%;background:var(–dot-off);border:1.5px solid var(–border);transition:all 0.06s;flex-shrink:0;}
+.pt-beat-dot.accent{background:var(–pt-color);border-color:var(–pt-color);}
+.pt-beat-dot.active-accent{background:var(–pt-color);border-color:var(–pt-color);box-shadow:0 0 0 4px var(–pt-shadow);transform:scale(1.2);}
+.pt-beat-dot.active-normal{background:#555;border-color:#555;box-shadow:0 0 0 3px rgba(0,0,0,0.12);transform:scale(1.15);}
+.pt-beat-count-row{display:flex;align-items:center;gap:8px;margin-top:2px;}
+.pt-count-label{font-size:10px;color:var(–muted);flex:1;}
+
+/* Ratio display */
+.pt-ratio-card{background:var(–surface);border:1px solid var(–border);border-radius:14px;padding:14px 18px;display:flex;flex-direction:column;gap:8px;align-items:center;}
+.pt-ratio-label{font-size:10px;color:var(–muted);letter-spacing:0.5px;}
+.pt-ratio-value{font-family:‘DM Mono’,monospace;font-size:28px;font-weight:300;letter-spacing:1px;color:var(–text);}
+.pt-ratio-note{font-size:10px;color:var(–muted);text-align:center;line-height:1.5;}
+
+/* Timeline viz */
+.pt-timeline-card{background:var(–surface);border:1px solid var(–border);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:10px;}
+.pt-timeline-label{font-size:10px;color:var(–muted);letter-spacing:0.5px;}
+.pt-timeline{position:relative;height:56px;}
+.pt-lane{position:absolute;left:0;right:0;height:22px;border-radius:5px;background:var(–dot-off);overflow:hidden;}
+.pt-lane:first-child{top:0;}
+.pt-lane:last-child{top:34px;}
+.pt-tick{position:absolute;top:0;bottom:0;width:3px;border-radius:2px;transition:opacity 0.08s;}
+.pt-tick.on{opacity:1;}
+.pt-tick.off{opacity:0.18;}
+</style>
+
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="logo">Metro</div>
+  <div class="tabs">
+    <button class="tab-btn active" id="tabSimple" onclick="switchTab('simple')">シンプル</button>
+    <button class="tab-btn" id="tabPoly"   onclick="switchTab('poly')">ポリリズム</button>
+    <button class="tab-btn" id="tabPt"     onclick="switchTab('pt')">ポリテンポ</button>
+  </div>
+  <div class="tempo-name" id="tempoName">Allegro</div>
+</div>
+
+<!-- Shared BPM card (simple only) -->
+
+<div class="bpm-card" id="sharedBpmCard">
+  <div class="bpm-row">
+    <div class="bpm-number" id="bpmNum" onclick="startBpmEdit()" title="クリックで数値入力">120</div>
+    <div class="bpm-unit">BPM</div>
+  </div>
+  <div>
+    <div class="slider-header"><span>40</span><span>BPM</span><span id="sliderMax">300</span></div>
+    <input type="range" id="bpmSlider" min="40" max="300" value="120">
+  </div>
+  <div class="bpm-btns">
+    <button class="bpm-btn" onclick="changeBpm(-10)">−10</button>
+    <button class="bpm-btn" onclick="changeBpm(-1)">−1</button>
+    <button class="bpm-btn" onclick="changeBpm(1)">+1</button>
+    <button class="bpm-btn" onclick="changeBpm(10)">+10</button>
+  </div>
+</div>
+
+<!-- Action bars -->
+
+<div class="action-bar simple" id="actionSimple">
+  <button class="btn" onclick="tapTempo()">TAP</button>
+  <button class="btn btn-play" id="playBtn" onclick="togglePlay()">▶ START</button>
+</div>
+<div class="action-bar poly" id="actionPoly" style="display:none">
+  <button class="btn" onclick="tapTempo()">TAP</button>
+  <button class="btn" onclick="addLayer()">＋ レイヤー</button>
+  <button class="btn btn-play" id="playBtnPoly" onclick="togglePlay()">▶ START</button>
+</div>
+<div class="action-bar pt" id="actionPt" style="display:none">
+  <button class="btn" id="ptTapBtn" onclick="ptTap()">TAP (A)</button>
+  <button class="btn btn-play" id="playBtnPt" onclick="togglePlay()">▶ START</button>
+</div>
+
+<!-- ══ SIMPLE PANEL ══ -->
+
+<div id="simplePanel">
+  <div class="simple-pend-card">
+    <div class="pendulum-wrap">
+      <div class="pend-line" id="pendLine"><div class="pend-ball"></div></div>
+    </div>
+  </div>
+  <div class="simple-sub-card">
+    <div class="card-label">音符の分割</div>
+    <div class="sub-scroll" id="simpleSubRow"></div>
+  </div>
+  <div class="simple-beat-card">
+    <div class="card-label">拍のパターン（タップで切り替え）</div>
+    <div class="beat-grid" id="simpleBeatGrid"></div>
+    <div class="beat-count-row">
+      <span class="beat-count-label">拍数</span>
+      <button class="cnt-btn" onclick="sChangeBeats(-1)">−</button>
+      <span class="cnt-disp" id="sBeatCount">4</span>
+      <button class="cnt-btn" onclick="sChangeBeats(1)">+</button>
+    </div>
+    <div class="beat-hint">● アクセント　○ 通常　— ミュート</div>
+  </div>
+</div>
+
+<!-- ══ POLY PANEL ══ -->
+
+<div id="polyPanel" style="display:none">
+  <div class="viz-card">
+    <div class="viz-card-label">リズムグリッド（1小節）</div>
+    <div id="vizContainer"></div>
+  </div>
+  <div class="poly-layers" id="polyLayers"></div>
+  <button class="add-layer-btn" onclick="addLayer()">＋ レイヤーを追加</button>
+  <div class="hint">● アクセント　○ 通常　— ミュート　|　⊘ でミュート切替</div>
+</div>
+
+<!-- ══ POLYTEMPO PANEL ══ -->
+
+<div id="ptPanel" style="display:none">
+  <div class="pt-tracks" id="ptTracks"></div>
+
+  <!-- Ratio -->
+
+  <div class="pt-ratio-card">
+    <div class="pt-ratio-label">テンポ比率</div>
+    <div class="pt-ratio-value" id="ptRatioValue">3 : 2</div>
+    <div class="pt-ratio-note" id="ptRatioNote">A が B より 1.5× 速い</div>
+  </div>
+
+  <!-- Timeline -->
+
+  <div class="pt-timeline-card">
+    <div class="pt-timeline-label">タイムライン（1小節）</div>
+    <div class="pt-timeline" id="ptTimeline"></div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════
+// SHARED
+// ═══════════════════════════════════════
+let currentTab='simple', isPlaying=false, audioCtx=null;
+let schedulerHandle=null, nextNoteTime=0, masterTick=0;
+const LOOK_AHEAD=0.12, SCHEDULE_INT=25;
+const BPM_MIN=40, BPM_MAX=500;
+
+const TEMPO_MAP=[[40,60,'Largo'],[60,66,'Larghetto'],[66,76,'Adagio'],[76,108,'Andante'],[108,120,'Moderato'],[120,156,'Allegro'],[156,176,'Vivace'],[176,200,'Presto'],[200,501,'Prestissimo']];
+function getTempoName(b){return TEMPO_MAP.find(([lo,hi])=>b>=lo&&b<hi)?.[2]??'Prestissimo';}
+
+function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function scheduleClick(freq,vol,t){
+  const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+  osc.connect(gain);gain.connect(audioCtx.destination);
+  osc.frequency.value=freq;
+  gain.gain.setValueAtTime(vol,t);
+  gain.gain.exponentialRampToValueAtTime(0.001,t+0.065);
+  osc.start(t);osc.stop(t+0.065);
+}
+
+function getLCM(a,b){let x=a,y=b;while(y){[x,y]=[y,x%y];}return a*b/x;}
+function gcd(a,b){while(b){[a,b]=[b,a%b];}return a;}
+
+// ═══════════════════════════════════════
+// SHARED BPM (simple / poly)
+// ═══════════════════════════════════════
+let bpm=120;
+let tapTimes=[];
+
+function getSliderMax(){return currentTab==='poly'?150:300;}
+function setBpm(v){
+  bpm=Math.max(BPM_MIN,Math.min(BPM_MAX,Math.round(+v)||bpm));
+  document.getElementById('bpmNum').textContent=bpm;
+  const slider=document.getElementById('bpmSlider');
+  slider.value=Math.min(bpm,getSliderMax());
+  document.getElementById('tempoName').textContent=getTempoName(bpm);
+}
+function changeBpm(d){setBpm(bpm+d);}
+document.getElementById('bpmSlider').addEventListener('input',e=>setBpm(e.target.value));
+
+function updateSlider(){
+  const max=getSliderMax();
+  const slider=document.getElementById('bpmSlider');
+  slider.max=max;
+  document.getElementById('sliderMax').textContent=max;
+  slider.value=Math.min(bpm,max);
+}
+
+function startBpmEdit(){
+  const numEl=document.getElementById('bpmNum');
+  const inp=document.createElement('input');
+  inp.type='number';inp.className='bpm-input-el';
+  inp.value=bpm;inp.min=BPM_MIN;inp.max=BPM_MAX;
+  numEl.replaceWith(inp);inp.select();
+  function commit(){
+    const val=Math.max(BPM_MIN,Math.min(BPM_MAX,parseInt(inp.value)||bpm));
+    const div=document.createElement('div');
+    div.className='bpm-number';div.id='bpmNum';
+    div.title='クリックで数値入力';div.textContent=val;div.onclick=startBpmEdit;
+    inp.replaceWith(div);setBpm(val);
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=bpm;inp.blur();}});
+}
+
+function tapTempo(){
+  const now=Date.now();tapTimes.push(now);
+  if(tapTimes.length>8)tapTimes.shift();
+  if(tapTimes.length>=2){
+    const diffs=[];for(let i=1;i<tapTimes.length;i++)diffs.push(tapTimes[i]-tapTimes[i-1]);
+    setBpm(Math.round(60000/(diffs.reduce((a,b)=>a+b,0)/diffs.length)));
+  }
+  setTimeout(()=>{if(tapTimes.length&&Date.now()-tapTimes[tapTimes.length-1]>2200)tapTimes=[];},2300);
+}
+
+// ═══════════════════════════════════════
+// TAB SWITCH
+// ═══════════════════════════════════════
+function switchTab(tab){
+  if(isPlaying)togglePlay();
+  currentTab=tab;
+  ['simple','poly','pt'].forEach(t=>{
+    document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1)).className='tab-btn'+(tab===t?' active':'');
+    const p=document.getElementById(t==='simple'?'simplePanel':t==='poly'?'polyPanel':'ptPanel');
+    if(p)p.style.display=tab===t?(t==='pt'?'flex':'flex'):'none';
+    const a=document.getElementById('action'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(a)a.style.display=tab===t?'grid':'none';
+  });
+  // shared BPM card: hide on polytempo (each track has its own)
+  document.getElementById('sharedBpmCard').style.display=tab==='pt'?'none':'flex';
+  if(tab!=='pt') updateSlider();
+  if(tab==='poly')renderViz();
+  if(tab==='pt'){renderPtTimeline();updatePtRatio();}
+}
+
+// ═══════════════════════════════════════
+// PLAY / STOP
+// ═══════════════════════════════════════
+function getMasterSubsPerBeat(){
+  if(currentTab==='simple')return sSub;
+  if(currentTab==='poly'){if(!layers.length)return 1;return layers.reduce((acc,l)=>getLCM(acc,l.subdivision),1);}
+  if(currentTab==='pt')return 1; // handled separately
+  return 1;
+}
+
+function scheduler(){
+  if(currentTab==='pt'){schedulerPt();return;}
+  const masterSubs=getMasterSubsPerBeat();
+  const masterInterval=(60/bpm)/masterSubs;
+  while(nextNoteTime<audioCtx.currentTime+LOOK_AHEAD){
+    const t=nextNoteTime,tick=masterTick;
+    if(currentTab==='simple'){
+      const ratio=masterSubs/sSub;
+      if(tick%ratio===0){
+        const total=Math.round(tick/ratio),si=total%sSub,bi=Math.floor(total/sSub)%sBeats;
+        const mode=sBeatModes[bi];
+        if(mode!=='mute'){if(si===0)scheduleClick(mode==='accent'?1100:750,mode==='accent'?0.52:0.30,t);else scheduleClick(1350,0.14,t);}
+        const delay=Math.max(0,(t-audioCtx.currentTime)*1000);
+        ((bi,si)=>setTimeout(()=>{if(!isPlaying)return;if(si===0){flashBpm();swingPendulum();}renderSimpleBeatGrid(bi,si);},delay))(bi,si);
+      }
+    } else {
+      layers.forEach(layer=>{
+        if(layer.muted)return;
+        const ratio=masterSubs/layer.subdivision;
+        if(tick%ratio!==0)return;
+        const total=Math.round(tick/ratio),si=total%layer.subdivision,bi=Math.floor(total/layer.subdivision)%layer.beats;
+        const mode=layer.modes[bi];
+        if(mode!=='mute'){if(si===0)scheduleClick(mode==='accent'?1100:750,mode==='accent'?0.52:0.30,t);else scheduleClick(1350,0.14,t);}
+        const delay=Math.max(0,(t-audioCtx.currentTime)*1000);
+        ((lid,bi,si)=>setTimeout(()=>{if(!isPlaying)return;const l=layers.find(x=>x.id===lid);if(!l)return;updatePolyBeatCell(l,bi,si);updateVizCell(lid,bi,si);if(lid===layers[0]?.id&&si===0){flashBpm();swingPendulum();}},delay))(layer.id,bi,si);
+      });
+    }
+    nextNoteTime+=masterInterval;masterTick++;
+  }
+}
+
+function startMetronome(){
+  if(schedulerHandle){clearInterval(schedulerHandle);schedulerHandle=null;}
+  masterTick=0;nextNoteTime=audioCtx.currentTime+0.05;
+  if(currentTab==='pt'){ptNextA=nextNoteTime;ptNextB=nextNoteTime;ptBeatA=0;ptBeatB=0;}
+  schedulerHandle=setInterval(scheduler,SCHEDULE_INT);
+}
+function stopMetronome(){
+  if(schedulerHandle){clearInterval(schedulerHandle);schedulerHandle=null;}
+  renderSimpleBeatGrid(-1,-1);
+  layers.forEach(l=>{updatePolyBeatCell(l,-1,-1);updateVizCell(l.id,-1,-1);});
+  document.getElementById('pendLine').className='pend-line';
+  ptResetViz();
+}
+
+function togglePlay(){
+  initAudio();
+  if(audioCtx.state==='suspended')audioCtx.resume();
+  isPlaying=!isPlaying;
+  ['playBtn','playBtnPoly','playBtnPt'].forEach(id=>{
+    const b=document.getElementById(id);if(!b)return;
+    b.textContent=isPlaying?'■ STOP':'▶ START';
+    isPlaying?b.classList.add('playing'):b.classList.remove('playing');
+  });
+  isPlaying?startMetronome():stopMetronome();
+}
+
+// ═══════════════════════════════════════
+// VISUAL (shared)
+// ═══════════════════════════════════════
+function flashBpm(){const el=document.getElementById('bpmNum');if(!el)return;el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),55);}
+let pendDir=1;
+function swingPendulum(){
+  const line=document.getElementById('pendLine');if(!line)return;
+  line.className='pend-line';void line.offsetWidth;
+  line.className='pend-line '+(pendDir>0?'go-right':'go-left');pendDir*=-1;
+}
+
+// ═══════════════════════════════════════
+// SIMPLE MODE
+// ═══════════════════════════════════════
+const SIMPLE_SUBS=[{n:1,label:'♩ 1'},{n:2,label:'♪ 2'},{n:3,label:'♪ 3'},{n:4,label:'♪ 4'},{n:5,label:'♪ 5'},{n:6,label:'♪ 6'},{n:7,label:'♪ 7'},{n:8,label:'♪ 8'},{n:9,label:'♪ 9'}];
+const MODE_ORDER=['accent','normal','mute'];
+const MODE_ICON={accent:'●',normal:'○',mute:'—'};
+let sBeats=4,sSub=1,sBeatModes=['accent','normal','normal','normal'];
+
+function renderSimpleSubs(){
+  const row=document.getElementById('simpleSubRow');row.innerHTML='';
+  SIMPLE_SUBS.forEach(s=>{
+    const c=document.createElement('button');c.className='sub-chip'+(s.n===sSub?' active':'');c.textContent=s.label;c.title=`${s.n}連符`;
+    c.onclick=()=>{sSub=s.n;renderSimpleSubs();renderSimpleBeatGrid(-1,-1);};row.appendChild(c);
+  });
+}
+function renderSimpleBeatGrid(ab,as){
+  const grid=document.getElementById('simpleBeatGrid'),showDots=sSub>1;
+  if(grid.children.length!==sBeats){
+    grid.innerHTML='';document.getElementById('sBeatCount').textContent=sBeats;
+    for(let i=0;i<sBeats;i++)grid.appendChild(makeSimpleBeatCell(i,ab,as,showDots));return;
+  }
+  for(let i=0;i<sBeats;i++)updateSimpleBeatCell(i,ab,as,showDots);
+}
+function makeSimpleBeatCell(i,ab,as,sd){
+  const cell=document.createElement('div');cell.className='beat-cell';
+  const btn=document.createElement('button');btn.id=`sb-${i}`;btn.className='beat-btn '+sGetBtnClass(i,i===ab);
+  btn.innerHTML=`<span class="beat-icon">${MODE_ICON[sBeatModes[i]]}</span><span class="beat-idx">${i+1}</span>`;
+  btn.onclick=()=>{sBeatModes[i]=MODE_ORDER[(MODE_ORDER.indexOf(sBeatModes[i])+1)%3];renderSimpleBeatGrid(-1,-1);};
+  cell.appendChild(btn);
+  const dots=document.createElement('div');dots.id=`sd-${i}`;dots.className='sdots'+(sd?'':' hidden');
+  for(let s=0;s<sSub;s++){const d=document.createElement('div');d.id=`sdot-${i}-${s}`;d.className='sdot'+(i===ab&&s===as?' on':'');dots.appendChild(d);}
+  cell.appendChild(dots);return cell;
+}
+function updateSimpleBeatCell(i,ab,as,sd){
+  const btn=document.getElementById(`sb-${i}`);if(!btn)return;
+  btn.className='beat-btn '+sGetBtnClass(i,i===ab);
+  btn.innerHTML=`<span class="beat-icon">${MODE_ICON[sBeatModes[i]]}</span><span class="beat-idx">${i+1}</span>`;
+  const dots=document.getElementById(`sd-${i}`);if(dots)dots.className='sdots'+(sd?'':' hidden');
+  for(let s=0;s<sSub;s++){const d=document.getElementById(`sdot-${i}-${s}`);if(d)d.className='sdot'+(i===ab&&s===as?' on':'');}
+}
+function sGetBtnClass(i,active){return active?'sp-'+sBeatModes[i]:'s-'+sBeatModes[i];}
+function sChangeBeats(d){
+  const next=Math.max(1,Math.min(16,sBeats+d));if(next===sBeats)return;
+  sBeats=next;while(sBeatModes.length<sBeats)sBeatModes.push('normal');sBeatModes=sBeatModes.slice(0,sBeats);renderSimpleBeatGrid(-1,-1);
+}
+
+// ═══════════════════════════════════════
+// POLY MODE
+// ═══════════════════════════════════════
+const LAYER_COLORS=[
+  {color:'#2d5a8e',bg:'#ddeaf8',shadow:'rgba(45,90,142,0.25)'},
+  {color:'#7a3b8e',bg:'#f0e4f8',shadow:'rgba(122,59,142,0.25)'},
+  {color:'#2e7d4f',bg:'#ddf0e8',shadow:'rgba(46,125,79,0.25)'},
+  {color:'#b5591a',bg:'#fde8d4',shadow:'rgba(181,89,26,0.25)'},
+  {color:'#8e2d2d',bg:'#f8dede',shadow:'rgba(142,45,45,0.25)'},
+];
+let layers=[],nextLayerId=0,vizActiveBeat={},vizActiveSub={};
+
+function createLayer(beats=4,sub=1){
+  const id=nextLayerId++;const col=LAYER_COLORS[id%LAYER_COLORS.length];
+  return{id,beats,modes:Array.from({length:beats},(_,i)=>i===0?'accent':'normal'),subdivision:sub,muted:false,...col,_beat:0,_sub:0};
+}
+function addLayer(){if(layers.length>=5)return;layers.push(createLayer(4,[1,2,3,4,5,7][layers.length]??1));renderPolyLayers();renderViz();}
+function removeLayer(id){layers=layers.filter(l=>l.id!==id);renderPolyLayers();renderViz();}
+function toggleLayerMute(id){const l=layers.find(l=>l.id===id);if(l){l.muted=!l.muted;renderPolyLayers();}}
+function setLayerSub(id,n){const l=layers.find(l=>l.id===id);if(!l)return;l.subdivision=n;l._sub=0;renderPolyLayer(l);renderViz();}
+function changeLayerBeats(id,d){
+  const l=layers.find(l=>l.id===id);if(!l)return;
+  const next=Math.max(1,Math.min(16,l.beats+d));if(next===l.beats)return;
+  l.beats=next;while(l.modes.length<next)l.modes.push('normal');l.modes=l.modes.slice(0,next);l._beat=0;renderPolyLayer(l);renderViz();
+}
+function cyclePolyMode(id,bi){const l=layers.find(l=>l.id===id);if(!l)return;l.modes[bi]=MODE_ORDER[(MODE_ORDER.indexOf(l.modes[bi])+1)%3];renderPolyLayer(l);renderViz();}
+
+function renderViz(){
+  const container=document.getElementById('vizContainer');container.innerHTML='';if(!layers.length)return;
+  layers.forEach(l=>{
+    const row=document.createElement('div');row.className='viz-layer-row';
+    const nameEl=document.createElement('div');nameEl.className='viz-layer-name';nameEl.style.color=l.color;nameEl.textContent=`L${l.id+1}`;row.appendChild(nameEl);
+    const track=document.createElement('div');track.className='viz-track';track.id=`vtrack-${l.id}`;track.style.setProperty('--layer-color',l.color);
+    const lc=l.beats*l.subdivision;
+    for(let c=0;c<lc;c++){
+      const bi=Math.floor(c/l.subdivision),si=c%l.subdivision,mode=l.modes[bi];
+      const isActive=(vizActiveBeat[l.id]===bi&&vizActiveSub[l.id]===si);
+      const cell=document.createElement('div');cell.className='viz-cell';cell.style.left=`${(c/lc)*100}%`;cell.style.width=`${(1/lc)*100}%`;cell.style.setProperty('--layer-color',l.color);
+      cell.classList.add(isActive?'vc-playing-'+mode:'vc-'+mode);
+      if(si===0){const dot=document.createElement('div');dot.className='viz-dot';cell.appendChild(dot);}
+      if(si>0&&l.subdivision>1){const tick=document.createElement('div');tick.className='viz-sub-tick'+(isActive?' playing':'');tick.style.left='0';cell.appendChild(tick);}
+      cell.id=`vcell-${l.id}-${c}`;track.appendChild(cell);
+    }
+    if(l.muted){const ov=document.createElement('div');ov.style.cssText='position:absolute;inset:0;background:rgba(255,255,255,0.6);border-radius:6px;';track.appendChild(ov);}
+    row.appendChild(track);container.appendChild(row);
+  });
+}
+function updateVizCell(lid,bi,si){
+  const l=layers.find(l=>l.id===lid);if(!l)return;
+  vizActiveBeat[lid]=bi;vizActiveSub[lid]=si;
+  const lc=l.beats*l.subdivision;
+  for(let c=0;c<lc;c++){
+    const b=Math.floor(c/l.subdivision),s=c%l.subdivision,mode=l.modes[b];
+    const isActive=(b===bi&&s===si);
+    const cell=document.getElementById(`vcell-${l.id}-${c}`);if(!cell)continue;
+    cell.className='viz-cell';cell.style.setProperty('--layer-color',l.color);cell.classList.add(isActive?'vc-playing-'+mode:'vc-'+mode);
+  }
+}
+function renderPolyLayers(){const c=document.getElementById('polyLayers');c.innerHTML='';layers.forEach(l=>c.appendChild(buildLayerCard(l)));}
+function buildLayerCard(l){
+  const card=document.createElement('div');card.className='layer-card';card.id='lcard-'+l.id;
+  card.style.setProperty('--layer-color',l.color);card.style.setProperty('--layer-bg',l.bg);card.style.setProperty('--layer-shadow',l.shadow);card.style.borderColor=l.muted?'var(--border)':l.color;
+  const hdr=document.createElement('div');hdr.className='layer-header';
+  hdr.innerHTML=`<div class="layer-color-bar" style="background:${l.color}"></div><div class="layer-title" style="color:${l.color}">Layer ${l.id+1}</div><div class="layer-header-btns"><button class="icon-btn${l.muted?' on':''}" onclick="toggleLayerMute(${l.id})">⊘</button><button class="icon-btn" onclick="removeLayer(${l.id})">✕</button></div>`;
+  card.appendChild(hdr);
+  const body=document.createElement('div');body.className='layer-body';
+  const subLbl=document.createElement('div');subLbl.className='card-label';subLbl.textContent='分割（連符）';body.appendChild(subLbl);
+  const subRow=document.createElement('div');subRow.className='poly-sub-scroll';
+  SIMPLE_SUBS.forEach(s=>{const c=document.createElement('button');c.className='poly-sub-chip'+(s.n===l.subdivision?' active':'');c.style.setProperty('--layer-color',l.color);c.textContent=s.label;c.onclick=()=>setLayerSub(l.id,s.n);subRow.appendChild(c);});
+  body.appendChild(subRow);
+  const beatLbl=document.createElement('div');beatLbl.className='card-label';beatLbl.textContent='拍のパターン';body.appendChild(beatLbl);
+  const grid=document.createElement('div');grid.className='poly-beat-grid';grid.id='pg-'+l.id;buildPolyBeatGrid(l,grid,-1,-1);body.appendChild(grid);
+  const bcRow=document.createElement('div');bcRow.className='poly-beat-count-row';
+  bcRow.innerHTML=`<span class="poly-count-label">拍数</span><button class="cnt-btn" onclick="changeLayerBeats(${l.id},-1)">−</button><span class="cnt-disp" id="pbc-${l.id}">${l.beats}</span><button class="cnt-btn" onclick="changeLayerBeats(${l.id},1)">+</button>`;
+  body.appendChild(bcRow);card.appendChild(body);return card;
+}
+function buildPolyBeatGrid(l,grid,ab,as){
+  grid.innerHTML='';const sd=l.subdivision>1;
+  for(let i=0;i<l.beats;i++){
+    const cell=document.createElement('div');cell.className='poly-beat-cell';
+    const btn=document.createElement('button');btn.id=`pb-${l.id}-${i}`;
+    btn.style.setProperty('--layer-color',l.color);btn.style.setProperty('--layer-bg',l.bg);btn.style.setProperty('--layer-shadow',l.shadow);
+    const mode=l.modes[i],isA=i===ab;
+    btn.className='poly-beat-btn '+(isA?'pba-'+mode:'pb-'+mode);
+    btn.innerHTML=`<span class="bi">${MODE_ICON[mode]}</span><span class="bx">${i+1}</span>`;
+    btn.onclick=()=>cyclePolyMode(l.id,i);cell.appendChild(btn);
+    const dots=document.createElement('div');dots.className='poly-sdots'+(sd?'':' hidden');dots.style.setProperty('--layer-color',l.color);
+    for(let s=0;s<l.subdivision;s++){const d=document.createElement('div');d.id=`psdot-${l.id}-${i}-${s}`;d.className='poly-sdot'+(isA&&s===as?' on':'');dots.appendChild(d);}
+    dots.id=`psd-${l.id}-${i}`;cell.appendChild(dots);grid.appendChild(cell);
+  }
+}
+function updatePolyBeatCell(l,ab,as){
+  const sd=l.subdivision>1;
+  for(let i=0;i<l.beats;i++){
+    const btn=document.getElementById(`pb-${l.id}-${i}`);if(!btn)continue;
+    const mode=l.modes[i],isA=i===ab;
+    btn.className='poly-beat-btn '+(isA?'pba-'+mode:'pb-'+mode);
+    btn.style.setProperty('--layer-color',l.color);btn.style.setProperty('--layer-bg',l.bg);btn.style.setProperty('--layer-shadow',l.shadow);
+    btn.innerHTML=`<span class="bi">${MODE_ICON[mode]}</span><span class="bx">${i+1}</span>`;
+    const dw=document.getElementById(`psd-${l.id}-${i}`);if(dw)dw.className='poly-sdots'+(sd?'':' hidden');
+    for(let s=0;s<l.subdivision;s++){const d=document.getElementById(`psdot-${l.id}-${i}-${s}`);if(d)d.className='poly-sdot'+(isA&&s===as?' on':'');}
+  }
+}
+function renderPolyLayer(l){const ex=document.getElementById('lcard-'+l.id);if(!ex)return;ex.replaceWith(buildLayerCard(l));}
+
+// ═══════════════════════════════════════
+// POLYTEMPO MODE
+// ═══════════════════════════════════════
+const PT_COLORS=[
+  {color:'#2d5a8e',bg:'#ddeaf8',shadow:'rgba(45,90,142,0.25)'},
+  {color:'#7a3b8e',bg:'#f0e4f8',shadow:'rgba(122,59,142,0.25)'},
+];
+
+let ptTracks=[
+  {id:0,bpm:120,beats:4,muted:false,...PT_COLORS[0]},
+  {id:1,bpm:80, beats:3,muted:false,...PT_COLORS[1]},
+];
+let ptNextA=0,ptNextB=0,ptBeatA=0,ptBeatB=0;
+let ptTapTimes=[];
+
+function ptSetBpm(id,v){
+  const t=ptTracks.find(t=>t.id===id);if(!t)return;
+  t.bpm=Math.max(BPM_MIN,Math.min(BPM_MAX,Math.round(+v)||t.bpm));
+  const el=document.getElementById(`ptBpmNum-${id}`);if(el)el.textContent=t.bpm;
+  const sl=document.getElementById(`ptSlider-${id}`);if(sl)sl.value=Math.min(t.bpm,300);
+  updatePtRatio();renderPtTimeline();
+}
+function ptChangeBpm(id,d){ptSetBpm(id,ptTracks.find(t=>t.id===id).bpm+d);}
+
+function ptStartBpmEdit(id){
+  const numEl=document.getElementById(`ptBpmNum-${id}`);if(!numEl)return;
+  const t=ptTracks.find(t=>t.id===id);
+  const inp=document.createElement('input');inp.type='number';inp.className='pt-bpm-input';inp.value=t.bpm;inp.min=BPM_MIN;inp.max=BPM_MAX;
+  numEl.replaceWith(inp);inp.select();
+  function commit(){
+    const val=Math.max(BPM_MIN,Math.min(BPM_MAX,parseInt(inp.value)||t.bpm));
+    const div=document.createElement('div');div.className='pt-bpm-num';div.id=`ptBpmNum-${id}`;
+    div.style.color=t.color;div.textContent=val;div.onclick=()=>ptStartBpmEdit(id);
+    inp.replaceWith(div);ptSetBpm(id,val);
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=t.bpm;inp.blur();}});
+}
+
+function ptToggleMute(id){const t=ptTracks.find(t=>t.id===id);if(t){t.muted=!t.muted;renderPtTracks();}}
+function ptChangeBeats(id,d){
+  const t=ptTracks.find(t=>t.id===id);if(!t)return;
+  t.beats=Math.max(1,Math.min(16,t.beats+d));
+  renderPtTracks();renderPtTimeline();
+}
+
+// TAP for track A
+function ptTap(){
+  const now=Date.now();ptTapTimes.push(now);
+  if(ptTapTimes.length>8)ptTapTimes.shift();
+  if(ptTapTimes.length>=2){
+    const diffs=[];for(let i=1;i<ptTapTimes.length;i++)diffs.push(ptTapTimes[i]-ptTapTimes[i-1]);
+    ptSetBpm(0,Math.round(60000/(diffs.reduce((a,b)=>a+b,0)/diffs.length)));
+  }
+  setTimeout(()=>{if(ptTapTimes.length&&Date.now()-ptTapTimes[ptTapTimes.length-1]>2200)ptTapTimes=[];},2300);
+}
+
+function updatePtRatio(){
+  const a=ptTracks[0].bpm,b=ptTracks[1].bpm;
+  const g=gcd(a,b);
+  const ra=a/g,rb=b/g;
+  document.getElementById('ptRatioValue').textContent=`${ra} : ${rb}`;
+  const faster=a>b?'A':'B',slower=a>b?'B':'A';
+  const ratio=(Math.max(a,b)/Math.min(a,b)).toFixed(2);
+  document.getElementById('ptRatioNote').textContent=a===b?'A と B は同じテンポです':`${faster} が ${slower} より ${ratio}× 速い`;
+}
+
+function renderPtTracks(){
+  const container=document.getElementById('ptTracks');container.innerHTML='';
+  ptTracks.forEach(t=>container.appendChild(buildPtTrackCard(t)));
+}
+
+function buildPtTrackCard(t){
+  const card=document.createElement('div');card.className='pt-track';card.id='ptcard-'+t.id;
+  card.style.borderColor=t.muted?'var(--border)':t.color;
+
+  // header
+  const hdr=document.createElement('div');hdr.className='pt-track-header';
+  hdr.innerHTML=`<div class="pt-color-bar" style="background:${t.color}"></div>
+    <div class="pt-track-name" style="color:${t.color}">Track ${['A','B'][t.id]}</div>
+    <button class="pt-mute-btn${t.muted?' on':''}" onclick="ptToggleMute(${t.id})">⊘</button>`;
+  card.appendChild(hdr);
+
+  const body=document.createElement('div');body.className='pt-track-body';
+
+  // BPM row
+  const bpmRow=document.createElement('div');bpmRow.className='pt-bpm-row';
+  const bpmNum=document.createElement('div');bpmNum.className='pt-bpm-num';bpmNum.id=`ptBpmNum-${t.id}`;
+  bpmNum.style.color=t.muted?'var(--muted)':t.color;bpmNum.textContent=t.bpm;
+  bpmNum.title='クリックで数値入力';bpmNum.onclick=()=>ptStartBpmEdit(t.id);
+  bpmRow.appendChild(bpmNum);
+  const unit=document.createElement('div');unit.className='pt-bpm-unit';unit.textContent='BPM';bpmRow.appendChild(unit);
+  body.appendChild(bpmRow);
+
+  // Slider
+  const slWrap=document.createElement('div');slWrap.className='pt-slider-wrap';
+  const slHdr=document.createElement('div');slHdr.className='pt-slider-header';
+  slHdr.innerHTML='<span>40</span><span>BPM</span><span>300</span>';slWrap.appendChild(slHdr);
+  const sl=document.createElement('input');sl.type='range';sl.id=`ptSlider-${t.id}`;
+  sl.min=40;sl.max=300;sl.value=Math.min(t.bpm,300);
+  sl.style.accentColor=t.color;
+  sl.addEventListener('input',e=>ptSetBpm(t.id,e.target.value));
+  slWrap.appendChild(sl);body.appendChild(slWrap);
+
+  // ±buttons
+  const adjRow=document.createElement('div');adjRow.className='pt-adj-btns';
+  [[-10,'−10'],[-1,'−1'],[1,'+1'],[10,'+10']].forEach(([d,lbl])=>{
+    const b=document.createElement('button');b.className='pt-adj-btn';b.textContent=lbl;b.onclick=()=>ptChangeBpm(t.id,d);adjRow.appendChild(b);
+  });
+  body.appendChild(adjRow);
+
+  // Beat dots
+  const beatLabel=document.createElement('div');beatLabel.className='card-label';beatLabel.style.marginTop='4px';beatLabel.textContent='拍のビジュアル';body.appendChild(beatLabel);
+  const beatBar=document.createElement('div');beatBar.className='pt-beat-bar';beatBar.id=`ptBeats-${t.id}`;
+  for(let i=0;i<t.beats;i++){
+    const d=document.createElement('div');d.className='pt-beat-dot'+(i===0?' accent':'');
+    d.style.setProperty('--pt-color',t.color);d.style.setProperty('--pt-shadow',t.shadow);
+    d.id=`ptdot-${t.id}-${i}`;beatBar.appendChild(d);
+  }
+  body.appendChild(beatBar);
+
+  // Beat count
+  const bcRow=document.createElement('div');bcRow.className='pt-beat-count-row';
+  bcRow.innerHTML=`<span class="pt-count-label">拍数</span>
+    <button class="cnt-btn" onclick="ptChangeBeats(${t.id},-1)">−</button>
+    <span class="cnt-disp">${t.beats}</span>
+    <button class="cnt-btn" onclick="ptChangeBeats(${t.id},1)">+</button>`;
+  body.appendChild(bcRow);
+  card.appendChild(body);return card;
+}
+
+// Scheduler for polytempo — two independent clocks
+function schedulerPt(){
+  const now=audioCtx.currentTime;
+  ptTracks.forEach((t,idx)=>{
+    const interval=60/t.bpm;
+    let next=idx===0?ptNextA:ptNextB;
+    let beat=idx===0?ptBeatA:ptBeatB;
+    while(next<now+LOOK_AHEAD){
+      if(!t.muted){
+        const isAccent=beat===0;
+        scheduleClick(isAccent?1100:750,isAccent?0.52:0.28,next);
+      }
+      const delay=Math.max(0,(next-now)*1000);
+      ((bi,tid,clr,shd,nb)=>setTimeout(()=>{
+        if(!isPlaying||currentTab!=='pt')return;
+        // flash track bpm num
+        const el=document.getElementById(`ptBpmNum-${tid}`);
+        if(el){el.style.opacity='0.2';setTimeout(()=>{if(el)el.style.opacity='1';},60);}
+        // update beat dots
+        const tr=ptTracks.find(x=>x.id===tid);if(!tr)return;
+        for(let i=0;i<tr.beats;i++){
+          const d=document.getElementById(`ptdot-${tid}-${i}`);if(!d)continue;
+          d.className='pt-beat-dot';d.style.setProperty('--pt-color',clr);d.style.setProperty('--pt-shadow',shd);
+          if(i===bi){d.classList.add(bi===0?'active-accent':'active-normal');}
+          else if(i===0){d.classList.add('accent');}
+        }
+      },delay))(beat,t.id,t.color,t.shadow,next);
+
+      beat=(beat+1)%t.beats;
+      next+=interval;
+      if(idx===0){ptBeatA=beat;ptNextA=next;}
+      else{ptBeatB=beat;ptNextB=next;}
+    }
+    if(idx===0)ptNextA=next;else ptNextB=next;
+  });
+}
+
+function ptResetViz(){
+  ptTracks.forEach(t=>{
+    for(let i=0;i<t.beats;i++){
+      const d=document.getElementById(`ptdot-${t.id}-${i}`);if(!d)continue;
+      d.className='pt-beat-dot'+(i===0?' accent':'');
+      d.style.setProperty('--pt-color',t.color);d.style.setProperty('--pt-shadow',t.shadow);
+    }
+  });
+}
+
+// Timeline — shows beat positions of both tracks over one shared "measure"
+// measure length = LCM beats worth of the slower track
+function renderPtTimeline(){
+  const tl=document.getElementById('ptTimeline');tl.innerHTML='';
+  const a=ptTracks[0],b=ptTracks[1];
+
+  // Show 2 beats of each in relative position
+  const totalSec=Math.max(4/a.bpm,4/b.bpm)*60; // 4 beats of faster track
+  const TICKS=40;
+
+  ptTracks.forEach((t,idx)=>{
+    const lane=document.createElement('div');lane.className='pt-lane';
+    const beatSec=60/t.bpm;
+    const numBeats=Math.ceil(totalSec/beatSec)+1;
+    for(let i=0;i<numBeats;i++){
+      const pos=(i*beatSec/totalSec)*100;if(pos>100)break;
+      const tick=document.createElement('div');tick.className='pt-tick off';
+      tick.style.left=`${pos}%`;tick.style.background=t.color;
+      tick.style.opacity=i%t.beats===0?'0.9':'0.4';
+      tick.style.width=i%t.beats===0?'4px':'2px';
+      lane.appendChild(tick);
+    }
+    tl.appendChild(lane);
+  });
+}
+
+// ═══════════════════════════════════════
+// KEYBOARD
+// ═══════════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(document.activeElement.tagName==='INPUT')return;
+  if(e.code==='Space'){e.preventDefault();togglePlay();}
+  if(e.code==='ArrowUp')currentTab==='pt'?ptChangeBpm(0,1):changeBpm(1);
+  if(e.code==='ArrowDown')currentTab==='pt'?ptChangeBpm(0,-1):changeBpm(-1);
+  if(e.code==='KeyT')currentTab==='pt'?ptTap():tapTempo();
+});
+
+// ═══════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════
+renderSimpleSubs();
+renderSimpleBeatGrid(-1,-1);
+layers.push(createLayer(4,3));
+layers.push(createLayer(4,2));
+renderPolyLayers();
+renderPtTracks();
+updatePtRatio();
+renderPtTimeline();
+document.getElementById('tempoName').textContent=getTempoName(bpm);
+
+if('serviceWorker' in navigator){navigator.serviceWorker.register('sw.js');}
+</script>
+
+</body>
+</html>
