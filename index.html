@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+<title>Metro</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#f5f3ef">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Metro">
+<meta name="color-scheme" content="light">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f3ef;
+  --surface:#ffffff;
+  --border:#e2ddd6;
+  --border-light:#eeebe5;
+  --text:#111111;
+  --muted:#a09890;
+  --dot-off:#ece9e3;
+  --radius-card:16px;
+  --radius-btn:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+body{background:var(--bg);font-family:'DM Sans',sans-serif;color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:16px 14px 56px;gap:12px;}
+
+/* ── Top bar ── */
+.top-bar{width:100%;max-width:480px;display:flex;align-items:center;gap:8px;}
+.tabs{display:flex;border:1px solid var(–border);border-radius:10px;overflow:hidden;background:var(–dot-off);flex:1;min-width:0;}
+.tab-btn{font-family:‘DM Mono’,monospace;font-size:11px;letter-spacing:0.5px;padding:8px 0;border:none;background:transparent;color:var(–muted);cursor:pointer;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;transition:all 0.18s;}
+.tab-btn.active{background:var(–surface);color:var(–text);font-weight:500;border-radius:9px;margin:1px;}
+.gear-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(–border);background:var(–surface);font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(–muted);transition:all 0.15s;}
+.gear-btn.active{background:var(–text);color:#fff;border-color:var(–text);}
+
+/* ── BPM card ── */
+.bpm-card{width:100%;max-width:480px;background:var(–surface);border:1px solid var(–border);border-radius:var(–radius-card);padding:20px 20px 16px;display:flex;flex-direction:column;gap:14px;}
+.bpm-row{display:flex;align-items:baseline;justify-content:center;gap:6px;}
+.bpm-number{font-family:‘DM Mono’,monospace;font-size:80px;font-weight:300;line-height:1;letter-spacing:-4px;color:var(–text);user-select:none;cursor:text;min-width:210px;text-align:center;transition:opacity 0.06s;}
+.bpm-number.flash{opacity:0.18;}
+.bpm-input-el{font-family:‘DM Mono’,monospace;font-size:80px;font-weight:300;line-height:1;letter-spacing:-4px;color:var(–text);background:transparent;border:none;border-bottom:2px solid var(–text);outline:none;width:210px;text-align:center;padding:0;}
+.bpm-unit{font-family:‘DM Mono’,monospace;font-size:12px;letter-spacing:2px;color:var(–muted);padding-bottom:8px;}
+.slider-wrap{display:flex;flex-direction:column;gap:6px;}
+.slider-header{display:flex;justify-content:space-between;font-size:10px;color:var(–muted);}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:2px;background:var(–border);outline:none;cursor:pointer;border-radius:2px;border:none;display:block;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:var(–text);cursor:pointer;border-radius:50%;border:3px solid var(–surface);box-shadow:0 0 0 1.5px var(–text);margin-top:-9px;}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(–border);border-radius:2px;}
+input[type=range]::-moz-range-thumb{width:20px;height:20px;background:var(–text);cursor:pointer;border-radius:50%;border:3px solid var(–surface);}
+input[type=range]::-moz-range-track{height:2px;background:var(–border);border-radius:2px;}
+.bpm-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;}
+.bpm-btn{background:var(–dot-off);border:1px solid var(–border);color:var(–text);font-family:‘DM Mono’,monospace;font-size:11px;padding:9px 4px;cursor:pointer;border-radius:8px;transition:background 0.12s;}
+.bpm-btn:active{background:var(–border);}
+
+/* ── Action bar ── */
+.action-bar{width:100%;max-width:480px;display:grid;gap:8px;}
+.action-bar.simple{grid-template-columns:1fr 2fr;}
+.action-bar.poly{grid-template-columns:1fr 1fr 2fr;}
+.action-bar.pt{grid-template-columns:1fr 2fr;}
+.btn{font-family:‘DM Mono’,monospace;font-size:12px;letter-spacing:0.5px;padding:13px 8px;cursor:pointer;border-radius:var(–radius-btn);border:1px solid var(–border);background:var(–surface);color:var(–text);transition:all 0.12s;}
+.btn:active{background:var(–dot-off);}
+.btn-play{background:var(–text);border-color:var(–text);color:#fff;font-size:13px;font-weight:500;letter-spacing:1.5px;}
+.btn-play:active{opacity:0.8;}
+.btn-play.playing{background:var(–surface);color:var(–text);border-color:var(–border);}
+
+/* ── Simple ── */
+#simplePanel{width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px;}
+.pend-card{background:var(–surface);border:1px solid var(–border);border-radius:var(–radius-card);padding:14px 20px;}
+.pendulum-wrap{height:56px;position:relative;display:flex;justify-content:center;}
+.pend-line{position:absolute;top:0;left:50%;width:2px;height:44px;background:#d0ccc5;transform-origin:top center;transform:translateX(-50%);}
+.pend-ball{position:absolute;bottom:-8px;left:50%;transform:translateX(-50%);width:14px;height:14px;border-radius:50%;background:var(–text);}
+.pend-line.go-left{animation:toLeft 0.08s ease-out forwards;}
+.pend-line.go-right{animation:toRight 0.08s ease-out forwards;}
+@keyframes toLeft{to{transform:translateX(-50%) rotate(-30deg);}}
+@keyframes toRight{to{transform:translateX(-50%) rotate(30deg);}}
+
+.sub-card,.beat-card{background:var(–surface);border:1px solid var(–border);border-radius:var(–radius-card);padding:14px 16px 12px;}
+.card-label{font-size:10px;color:var(–muted);letter-spacing:0.8px;text-transform:uppercase;margin-bottom:10px;}
+.sub-scroll{display:flex;gap:5px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.sub-scroll::-webkit-scrollbar{display:none;}
+.sub-chip{flex-shrink:0;padding:6px 13px;border:1.5px solid var(–border);border-radius:20px;font-family:‘DM Mono’,monospace;font-size:11px;color:var(–muted);cursor:pointer;background:var(–dot-off);user-select:none;white-space:nowrap;transition:all 0.12s;}
+.sub-chip.active{border-color:var(–text);background:var(–text);color:#fff;}
+
+.beat-grid{display:flex;flex-wrap:wrap;gap:6px;}
+.beat-cell{display:flex;flex-direction:column;align-items:center;gap:4px;}
+.beat-btn{width:44px;height:44px;border-radius:10px;border:1.5px solid var(–border);background:var(–dot-off);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;user-select:none;transition:all 0.12s;}
+.beat-icon{font-size:14px;line-height:1;color:#bbb;}
+.beat-idx{font-size:8px;color:var(–muted);}
+.beat-btn.s-accent{border-color:var(–text);background:var(–text);}.beat-btn.s-accent .beat-icon{color:#fff;}
+.beat-btn.s-normal{border-color:var(–border);background:var(–dot-off);}
+.beat-btn.s-mute{border-color:var(–border-light);background:var(–surface);}.beat-btn.s-mute .beat-icon{color:#d8d3cc;}
+.beat-btn.sp-accent{border-color:#111;background:#111;box-shadow:0 0 0 3px rgba(0,0,0,0.12);}.beat-btn.sp-accent .beat-icon{color:#fff;}
+.beat-btn.sp-normal{background:#444;border-color:#444;box-shadow:0 0 0 3px rgba(0,0,0,0.09);}.beat-btn.sp-normal .beat-icon{color:#fff;}
+.beat-btn.sp-mute{background:#e8e4de;border-color:#ccc;}.beat-btn.sp-mute .beat-icon{color:#aaa;}
+.sdots{display:flex;gap:3px;flex-wrap:wrap;justify-content:center;max-width:44px;}
+.sdot{width:5px;height:5px;border-radius:50%;}
+.sdots.hidden{visibility:hidden;}
+.beat-count-row{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(–border-light);}
+.beat-count-label{font-size:11px;color:var(–muted);flex:1;}
+.cnt-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(–border);background:var(–dot-off);font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-family:‘DM Mono’,monospace;color:var(–text);line-height:1;transition:background 0.1s;}
+.cnt-btn:active{background:var(–border);}
+.cnt-disp{font-family:‘DM Mono’,monospace;font-size:18px;font-weight:500;min-width:28px;text-align:center;}
+.beat-hint{font-size:10px;color:var(–muted);margin-top:8px;letter-spacing:0.3px;}
+
+/* ── Poly ── */
+#polyPanel{width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px;}
+.viz-card{background:var(–surface);border:1px solid var(–border);border-radius:var(–radius-card);padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow:hidden;}
+.viz-card-label{font-size:10px;color:var(–muted);letter-spacing:0.8px;text-transform:uppercase;}
+.viz-layer-row{display:flex;align-items:center;gap:8px;}
+.viz-layer-name{font-family:‘DM Mono’,monospace;font-size:10px;font-weight:500;width:18px;text-align:center;flex-shrink:0;}
+.viz-track{flex:1;height:30px;position:relative;border-radius:8px;background:var(–dot-off);overflow:hidden;}
+.viz-cell{position:absolute;top:0;height:100%;border-right:1px solid var(–bg);display:flex;align-items:center;justify-content:center;}
+.viz-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,0.9);pointer-events:none;display:none;}
+.viz-dot.show{display:block;}
+.viz-sub-tick{position:absolute;top:5px;bottom:5px;width:1px;background:rgba(0,0,0,0.07);pointer-events:none;left:0;}
+.poly-layers{display:flex;flex-direction:column;gap:10px;}
+.layer-card{background:var(–surface);border:1.5px solid var(–border);border-radius:var(–radius-card);overflow:hidden;}
+.layer-header{display:flex;align-items:center;gap:9px;padding:11px 14px 9px;border-bottom:1px solid var(–border-light);}
+.layer-color-bar{width:3px;height:20px;border-radius:2px;flex-shrink:0;}
+.layer-title{font-family:‘DM Mono’,monospace;font-size:12px;font-weight:500;flex:1;}
+.layer-header-btns{display:flex;gap:5px;}
+.icon-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(–border);background:var(–dot-off);font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(–muted);transition:all 0.12s;}
+.icon-btn.on{background:var(–text);color:#fff;border-color:var(–text);}
+.layer-body{padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.poly-sub-scroll{display:flex;gap:4px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none;}
+.poly-sub-scroll::-webkit-scrollbar{display:none;}
+.poly-sub-chip{flex-shrink:0;padding:5px 10px;border:1.5px solid var(–border);border-radius:16px;font-family:‘DM Mono’,monospace;font-size:10px;color:var(–muted);cursor:pointer;background:var(–dot-off);user-select:none;white-space:nowrap;transition:all 0.12s;}
+.poly-beat-grid{display:flex;flex-wrap:wrap;gap:4px;}
+.poly-beat-cell{display:flex;flex-direction:column;align-items:center;gap:3px;}
+.poly-beat-btn{width:36px;height:36px;border-radius:8px;border:1.5px solid var(–border);background:var(–dot-off);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;user-select:none;}
+.poly-sdots{display:flex;gap:2px;}
+.poly-sdot{width:5px;height:5px;border-radius:50%;}
+.poly-sdots.hidden{visibility:hidden;}
+.poly-beat-count-row{display:flex;align-items:center;gap:8px;margin-top:2px;}
+.poly-count-label{font-size:10px;color:var(–muted);flex:1;}
+.add-layer-btn{width:100%;padding:12px;border:1.5px dashed var(–border);background:transparent;border-radius:var(–radius-card);font-family:‘DM Mono’,monospace;font-size:11px;letter-spacing:0.5px;color:var(–muted);cursor:pointer;transition:all 0.15s;}
+.add-layer-btn:hover{border-color:var(–text);color:var(–text);}
+.hint{font-size:10px;color:var(–muted);text-align:center;letter-spacing:0.2px;}
+
+/* ── Polytempo ── */
+#ptPanel{width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px;}
+.pt-tracks{display:flex;flex-direction:column;gap:10px;}
+.pt-track{background:var(–surface);border:1.5px solid var(–border);border-radius:var(–radius-card);overflow:hidden;}
+.pt-track-header{display:flex;align-items:center;gap:10px;padding:12px 14px 10px;border-bottom:1px solid var(–border-light);}
+.pt-color-bar{width:3px;height:22px;border-radius:2px;flex-shrink:0;}
+.pt-track-name{font-family:‘DM Mono’,monospace;font-size:12px;font-weight:500;flex:1;}
+.pt-hdr-btns{display:flex;gap:5px;}
+.pt-icon-btn{width:28px;height:28px;border-radius:7px;border:1px solid var(–border);background:var(–dot-off);font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(–muted);transition:all 0.12s;}
+.pt-icon-btn.on-mute{background:var(–text);color:#fff;border-color:var(–text);}
+.pt-track-body{padding:14px 16px;display:flex;flex-direction:column;gap:12px;}
+.pt-bpm-row{display:flex;align-items:center;gap:10px;}
+.pt-bpm-num{font-family:‘DM Mono’,monospace;font-size:54px;font-weight:300;line-height:1;letter-spacing:-2px;cursor:text;user-select:none;flex:1;text-align:center;transition:opacity 0.06s;}
+.pt-bpm-input{font-family:‘DM Mono’,monospace;font-size:54px;font-weight:300;line-height:1;letter-spacing:-2px;background:transparent;border:none;border-bottom:2px solid var(–text);outline:none;width:100%;text-align:center;padding:0;}
+.pt-bpm-unit{font-family:‘DM Mono’,monospace;font-size:11px;color:var(–muted);letter-spacing:2px;}
+.pt-slider-wrap{display:flex;flex-direction:column;gap:5px;}
+.pt-slider-header{display:flex;justify-content:space-between;font-size:10px;color:var(–muted);}
+.pt-adj-btns{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;}
+.pt-adj-btn{background:var(–dot-off);border:1px solid var(–border);color:var(–text);font-family:‘DM Mono’,monospace;font-size:11px;padding:8px 4px;cursor:pointer;border-radius:8px;transition:background 0.1s;}
+.pt-adj-btn:active{background:var(–border);}
+.pt-tone-row{display:flex;gap:4px;flex-wrap:wrap;}
+.pt-tone-chip{flex-shrink:0;padding:5px 9px;border:1.5px solid var(–border);border-radius:14px;font-family:‘DM Mono’,monospace;font-size:10px;color:var(–muted);cursor:pointer;background:var(–dot-off);white-space:nowrap;transition:all 0.12s;}
+.pt-beat-bar{display:flex;gap:6px;flex-wrap:wrap;}
+.pt-beat-dot{width:16px;height:16px;border-radius:50%;background:var(–dot-off);border:1.5px solid var(–border);transition:all 0.07s;flex-shrink:0;}
+.pt-beat-count-row{display:flex;align-items:center;gap:8px;}
+.pt-count-label{font-size:10px;color:var(–muted);flex:1;}
+
+/* Ratio card */
+.pt-ratio-card{background:var(–surface);border:1px solid var(–border);border-radius:var(–radius-card);padding:18px 20px;display:flex;flex-direction:column;gap:6px;align-items:center;}
+.pt-ratio-label{font-size:10px;color:var(–muted);letter-spacing:0.8px;text-transform:uppercase;}
+.pt-ratio-value{font-family:‘DM Mono’,monospace;font-size:36px;font-weight:300;letter-spacing:2px;color:var(–text);}
+.pt-ratio-note{font-size:12px;color:var(–muted);text-align:center;line-height:1.5;}
+
+/* ── Settings ── */
+#settingsPanel{width:100%;max-width:480px;display:flex;flex-direction:column;gap:12px;}
+.settings-section{background:var(–surface);border:1px solid var(–border);border-radius:var(–radius-card);overflow:hidden;}
+.settings-section-title{font-family:‘DM Mono’,monospace;font-size:10px;letter-spacing:1.5px;color:var(–muted);padding:12px 16px 8px;border-bottom:1px solid var(–border-light);text-transform:uppercase;}
+.settings-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid var(–border-light);gap:12px;}
+.settings-row:last-child{border-bottom:none;}
+.settings-row-icon{font-size:18px;width:28px;text-align:center;flex-shrink:0;}
+.settings-row-text{flex:1;min-width:0;}
+.settings-row-label{font-size:14px;color:var(–text);}
+.settings-row-sub{font-size:11px;color:var(–muted);margin-top:2px;line-height:1.4;}
+.toggle{position:relative;width:44px;height:26px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;position:absolute;}
+.toggle-slider{position:absolute;inset:0;background:var(–border);border-radius:26px;cursor:pointer;transition:0.2s;}
+.toggle-slider:before{content:’’;position:absolute;width:20px;height:20px;left:3px;top:3px;background:#fff;border-radius:50%;transition:0.2s;box-shadow:0 1px 4px rgba(0,0,0,0.18);}
+.toggle input:checked+.toggle-slider{background:var(–text);}
+.toggle input:checked+.toggle-slider:before{transform:translateX(18px);}
+.lang-btns{display:flex;border:1px solid var(–border);border-radius:8px;overflow:hidden;background:var(–dot-off);flex-shrink:0;}
+.lang-btn{font-family:‘DM Mono’,monospace;font-size:11px;padding:7px 14px;border:none;background:transparent;color:var(–muted);cursor:pointer;transition:all 0.15s;}
+.lang-btn.active{background:var(–surface);color:var(–text);font-weight:500;}
+.tone-chips{display:flex;gap:5px;flex-wrap:wrap;}
+.tone-chip{padding:6px 12px;border:1.5px solid var(–border);border-radius:16px;font-family:‘DM Mono’,monospace;font-size:10px;color:var(–muted);cursor:pointer;background:var(–dot-off);white-space:nowrap;transition:all 0.12s;}
+.tone-chip.active{border-color:var(–text);background:var(–text);color:#fff;}
+.vol-label{font-size:11px;color:var(–muted);font-family:‘DM Mono’,monospace;flex-shrink:0;}
+.settings-link{text-decoration:none;display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid var(–border-light);gap:12px;color:inherit;transition:background 0.1s;}
+.settings-link:last-child{border-bottom:none;}
+.settings-link:active{background:var(–dot-off);}
+.settings-link-icon{font-size:18px;width:28px;text-align:center;flex-shrink:0;}
+.settings-link-text{flex:1;min-width:0;}
+.settings-link-label{font-size:14px;color:var(–text);}
+.settings-link-sub{font-size:11px;color:var(–muted);margin-top:2px;}
+.settings-link-arrow{color:#ccc;font-size:16px;flex-shrink:0;}
+.tip-card{background:var(–surface);border:1px solid var(–border);border-radius:var(–radius-card);padding:22px 18px;display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;}
+.tip-emoji{font-size:34px;}
+.tip-title{font-family:‘DM Mono’,monospace;font-size:13px;font-weight:500;}
+.tip-sub{font-size:12px;color:var(–muted);line-height:1.65;max-width:320px;}
+.tip-btn{background:var(–text);color:#fff;border:none;border-radius:10px;padding:12px 30px;font-family:‘DM Mono’,monospace;font-size:12px;letter-spacing:1px;cursor:pointer;text-decoration:none;display:inline-block;transition:opacity 0.12s;}
+.tip-btn:active{opacity:0.8;}
+.settings-version{font-family:‘DM Mono’,monospace;font-size:10px;color:#ccc;text-align:center;padding:6px;}
+.wake-note{font-size:10px;color:#b5591a;margin-top:3px;}
+</style>
+
+</head>
+<body>
+
+<div class="top-bar">
+  <div class="tabs">
+    <button class="tab-btn active" id="tabSimple" onclick="switchTab('simple')"></button>
+    <button class="tab-btn"        id="tabPoly"   onclick="switchTab('poly')"></button>
+    <button class="tab-btn"        id="tabPt"     onclick="switchTab('pt')"></button>
+  </div>
+  <button class="gear-btn" id="settingsGear" onclick="switchTab('settings')">⚙︎</button>
+</div>
+
+<div class="bpm-card" id="sharedBpmCard">
+  <div class="bpm-row">
+    <div class="bpm-number" id="bpmNum" onclick="startBpmEdit()">120</div>
+    <div class="bpm-unit">BPM</div>
+  </div>
+  <div class="slider-wrap">
+    <div class="slider-header"><span id="sliderMinLbl">40</span><span>BPM</span><span id="sliderMaxLbl">300</span></div>
+    <input type="range" id="bpmSlider" min="40" max="300" value="120">
+  </div>
+  <div class="bpm-btns">
+    <button class="bpm-btn" onclick="changeBpm(-10)">−10</button>
+    <button class="bpm-btn" onclick="changeBpm(-1)">−1</button>
+    <button class="bpm-btn" onclick="changeBpm(1)">+1</button>
+    <button class="bpm-btn" onclick="changeBpm(10)">+10</button>
+  </div>
+</div>
+
+<div class="action-bar simple" id="actionSimple">
+  <button class="btn" onclick="tapTempo()" id="btnTap">TAP</button>
+  <button class="btn btn-play" id="playBtn" onclick="togglePlay()">▶ START</button>
+</div>
+<div class="action-bar poly" id="actionPoly" style="display:none">
+  <button class="btn" onclick="tapTempo()">TAP</button>
+  <button class="btn" onclick="addLayer()">＋ ADD</button>
+  <button class="btn btn-play" id="playBtnPoly" onclick="togglePlay()">▶ START</button>
+</div>
+<div class="action-bar pt" id="actionPt" style="display:none">
+  <button class="btn" onclick="ptTap()">TAP A</button>
+  <button class="btn btn-play" id="playBtnPt" onclick="togglePlay()">▶ START</button>
+</div>
+
+<!-- Simple -->
+
+<div id="simplePanel">
+  <div class="pend-card">
+    <div class="pendulum-wrap"><div class="pend-line" id="pendLine"><div class="pend-ball"></div></div></div>
+  </div>
+  <div class="sub-card">
+    <div class="card-label" id="lblSubDiv">分割</div>
+    <div class="sub-scroll" id="simpleSubRow"></div>
+  </div>
+  <div class="beat-card">
+    <div class="card-label" id="lblBeatPattern">拍パターン</div>
+    <div class="beat-grid" id="simpleBeatGrid"></div>
+    <div class="beat-count-row">
+      <span class="beat-count-label" id="lblBeats">拍数</span>
+      <button class="cnt-btn" onclick="sChangeBeats(-1)">−</button>
+      <span class="cnt-disp" id="sBeatCount">4</span>
+      <button class="cnt-btn" onclick="sChangeBeats(1)">+</button>
+    </div>
+    <div class="beat-hint" id="lblBeatHint">● アクセント　○ 通常　— ミュート</div>
+  </div>
+</div>
+
+<!-- Poly -->
+
+<div id="polyPanel" style="display:none">
+  <div class="viz-card">
+    <div class="viz-card-label" id="lblRhythmGrid">リズムグリッド</div>
+    <div id="vizContainer"></div>
+  </div>
+  <div class="poly-layers" id="polyLayers"></div>
+  <button class="add-layer-btn" onclick="addLayer()" id="btnAddLayerBottom">＋ レイヤーを追加</button>
+  <div class="hint" id="lblPolyHint">● アクセント　○ 通常　— ミュート　｜　⊘ ミュート</div>
+</div>
+
+<!-- Polytempo -->
+
+<div id="ptPanel" style="display:none">
+  <div class="pt-tracks" id="ptTracks"></div>
+  <div class="pt-ratio-card">
+    <div class="pt-ratio-label" id="lblTempoRatio">テンポ比率</div>
+    <div class="pt-ratio-value" id="ptRatioValue">3 : 2</div>
+    <div class="pt-ratio-note" id="ptRatioNote"></div>
+  </div>
+</div>
+
+<!-- Settings -->
+
+<div id="settingsPanel" style="display:none">
+  <div class="settings-section">
+    <div class="settings-section-title">言語 / Language</div>
+    <div class="settings-row">
+      <div class="settings-row-icon">🌐</div>
+      <div class="settings-row-text"><div class="settings-row-label" id="lblLang">言語</div></div>
+      <div class="lang-btns">
+        <button class="lang-btn active" id="langJa" onclick="setLang('ja')">日本語</button>
+        <button class="lang-btn" id="langEn" onclick="setLang('en')">English</button>
+      </div>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title" id="lblSecSound">サウンド</div>
+    <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:10px;">
+      <div style="display:flex;align-items:center;gap:10px;width:100%;">
+        <div class="settings-row-icon">🔔</div>
+        <div class="settings-row-text"><div class="settings-row-label" id="lblToneLabel">音色</div></div>
+      </div>
+      <div class="tone-chips" id="toneChips"></div>
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;width:100%;">
+        <div class="settings-row-icon">🔊</div>
+        <div class="settings-row-text"><div class="settings-row-label" id="lblAccentVol">アクセント音量</div></div>
+        <div class="vol-label" id="volAccentNum">100%</div>
+      </div>
+      <input type="range" id="sliderAccentVol" min="0" max="100" value="100" style="width:100%;">
+    </div>
+    <div class="settings-row" style="flex-direction:column;align-items:flex-start;gap:8px;">
+      <div style="display:flex;align-items:center;gap:10px;width:100%;">
+        <div class="settings-row-icon">🔈</div>
+        <div class="settings-row-text"><div class="settings-row-label" id="lblSubVol">分割音量</div></div>
+        <div class="vol-label" id="volSubNum">30%</div>
+      </div>
+      <input type="range" id="sliderSubVol" min="0" max="100" value="30" style="width:100%;">
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title" id="lblSecBehavior">動作</div>
+    <div class="settings-row">
+      <div class="settings-row-icon">📳</div>
+      <div class="settings-row-text"><div class="settings-row-label" id="lblVibLabel">バイブレーション</div><div class="settings-row-sub" id="lblVibSub">拍に合わせて振動</div></div>
+      <label class="toggle"><input type="checkbox" id="toggleVib" onchange="saveSetting('vib',this.checked)"><span class="toggle-slider"></span></label>
+    </div>
+    <div class="settings-row">
+      <div class="settings-row-icon">🌙</div>
+      <div class="settings-row-text">
+        <div class="settings-row-label" id="lblWakeLabel">常時点灯</div>
+        <div class="settings-row-sub" id="lblWakeSub">スリープしない</div>
+        <div class="wake-note" id="wakeNote"></div>
+      </div>
+      <label class="toggle"><input type="checkbox" id="toggleWake" onchange="handleWakeLock(this.checked)" checked><span class="toggle-slider"></span></label>
+    </div>
+  </div>
+  <div class="settings-section">
+    <div class="settings-section-title" id="lblSecDev">開発者</div>
+    <a class="settings-link" href="https://instagram.com/bo_yuya_ok" target="_blank" rel="noopener">
+      <div class="settings-link-icon">📸</div>
+      <div class="settings-link-text"><div class="settings-link-label">Instagram</div><div class="settings-link-sub">@bo_yuya_ok</div></div>
+      <div class="settings-link-arrow">›</div>
+    </a>
+    <a class="settings-link" href="https://x.com/bo_yuya_ok" target="_blank" rel="noopener">
+      <div class="settings-link-icon">𝕏</div>
+      <div class="settings-link-text"><div class="settings-link-label">X (Twitter)</div><div class="settings-link-sub">@bo_yuya_ok</div></div>
+      <div class="settings-link-arrow">›</div>
+    </a>
+    <a class="settings-link" href="mailto:yuyasizeperc@gmail.com">
+      <div class="settings-link-icon">✉️</div>
+      <div class="settings-link-text"><div class="settings-link-label" id="lblEmail">メール</div><div class="settings-link-sub" id="lblEmailSub">ご意見・ご要望はこちらへ</div></div>
+      <div class="settings-link-arrow">›</div>
+    </a>
+  </div>
+  <!-- IAP tip card -->
+  <div class="tip-card">
+    <div class="tip-emoji">☕</div>
+    <div class="tip-title" id="lblTipTitle">開発者を応援する</div>
+    <div class="tip-sub" id="lblTipSub">このアプリが役に立ったら、コーヒー一杯分のサポートをお願いします！</div>
+    <button class="tip-btn" id="tipBtn" onclick="purchaseTip()">☕ コーヒーを一杯おごる</button>
+    <div id="tipStatus" style="font-size:11px;color:var(--muted);min-height:16px;"></div>
+  </div>
+  <div class="settings-version">Metro v1.0</div>
+</div>
+
+<script>
+// ════════════════════════════════
+// I18N
+// ════════════════════════════════
+const I18N={
+  ja:{
+    simple:'シンプル',poly:'ポリリズム',pt:'ポリテンポ',
+    subDiv:'分割',beatPattern:'拍パターン',beats:'拍数',
+    beatHint:'● アクセント　○ 通常　— ミュート',
+    rhythmGrid:'リズムグリッド',addLayer:'＋ レイヤーを追加',
+    polyHint:'● アクセント　○ 通常　— ミュート　｜　⊘ ミュート',
+    tempoRatio:'テンポ比率',
+    lang:'言語',secSound:'サウンド',toneLabel:'音色',
+    accentVol:'アクセント音量',subVol:'分割音量',
+    secBehavior:'動作',vibLabel:'バイブレーション',vibSub:'拍に合わせて振動',
+    wakeLabel:'常時点灯',wakeSub:'スリープしない',
+    wakeOk:'✓ このブラウザで有効',wakeNg:'⚠ 非対応（Chrome推奨）',
+    secDev:'開発者',email:'メール',emailSub:'ご意見・ご要望はこちらへ',
+    tipTitle:'開発者を応援する',
+    tipSub:'このアプリが役に立ったら、ぜひサポートをお願いします！',
+    tipBtn:'☕ コーヒーを一杯おごる',
+    tipPurchasing:'処理中...',
+    tipDone:'ありがとうございます！☕',
+    tipFail:'購入できませんでした',
+    faster:'が',fasterB:'より',times:'× 速い',sameTemp:'A と B は同じテンポです',
+    layerLabel:'Layer',trackLabel:'Track',
+    subdivision:'分割（連符）',beatPatternShort:'拍パターン',beatCount:'拍数',
+    start:'▶  START',stop:'■  STOP',toneChipLabel:'音色',
+  },
+  en:{
+    simple:'Simple',poly:'Poly',pt:'Polytempo',
+    subDiv:'Subdivision',beatPattern:'Beat Pattern',beats:'Beats',
+    beatHint:'● Accent　○ Normal　— Mute',
+    rhythmGrid:'Rhythm Grid',addLayer:'＋ Add Layer',
+    polyHint:'● Accent　○ Normal　— Mute　｜　⊘ Mute layer',
+    tempoRatio:'Tempo Ratio',
+    lang:'Language',secSound:'Sound',toneLabel:'Tone',
+    accentVol:'Accent Volume',subVol:'Subdivision Volume',
+    secBehavior:'Behavior',vibLabel:'Vibration',vibSub:'Vibrate on each beat',
+    wakeLabel:'Keep Awake',wakeSub:'Prevent sleep',
+    wakeOk:'✓ Supported in your browser',wakeNg:'⚠ Not supported (Chrome recommended)',
+    secDev:'Developer',email:'Email',emailSub:'Send feedback or suggestions here',
+    tipTitle:'Support the Developer',
+    tipSub:'If this app is helpful, please consider supporting development!',
+    tipBtn:'☕ Buy me a coffee',
+    tipPurchasing:'Processing...',
+    tipDone:'Thank you! ☕',
+    tipFail:'Purchase failed',
+    faster:'is',fasterB:'faster than',times:'×',sameTemp:'A and B are the same tempo',
+    layerLabel:'Layer',trackLabel:'Track',
+    subdivision:'Subdivision',beatPatternShort:'Beat Pattern',beatCount:'Beats',
+    start:'▶  START',stop:'■  STOP',toneChipLabel:'Tone',
+  }
+};
+let lang='ja';
+function t(k){const v=I18N[lang][k];return v??k;}
+
+function applyLang(){
+  ['simple','poly','pt'].forEach(tab=>{
+    const el=document.getElementById('tab'+tab.charAt(0).toUpperCase()+tab.slice(1));
+    if(el)el.textContent=t(tab);
+  });
+  const map={
+    lblSubDiv:'subDiv',lblBeatPattern:'beatPattern',lblBeats:'beats',lblBeatHint:'beatHint',
+    lblRhythmGrid:'rhythmGrid',btnAddLayerBottom:'addLayer',lblPolyHint:'polyHint',
+    lblTempoRatio:'tempoRatio',lblLang:'lang',
+    lblSecSound:'secSound',lblToneLabel:'toneLabel',
+    lblAccentVol:'accentVol',lblSubVol:'subVol',
+    lblSecBehavior:'secBehavior',lblVibLabel:'vibLabel',lblVibSub:'vibSub',
+    lblWakeLabel:'wakeLabel',lblWakeSub:'wakeSub',
+    lblSecDev:'secDev',lblEmail:'email',lblEmailSub:'emailSub',
+    lblTipTitle:'tipTitle',lblTipSub:'tipSub',
+  };
+  Object.entries(map).forEach(([id,k])=>{const el=document.getElementById(id);if(el)el.textContent=t(k);});
+  ['playBtn','playBtnPoly','playBtnPt'].forEach(id=>{const b=document.getElementById(id);if(!b)return;b.textContent=isPlaying?t('stop'):t('start');});
+  document.getElementById('langJa').className='lang-btn'+(lang==='ja'?' active':'');
+  document.getElementById('langEn').className='lang-btn'+(lang==='en'?' active':'');
+  const wn=document.getElementById('wakeNote');if(wn)wn.textContent='wakeLock' in navigator?t('wakeOk'):t('wakeNg');
+  renderToneChips();updatePtRatio();renderSimpleSubs();renderPolyLayers();renderPtTracks();updateTipBtn();
+}
+function setLang(l){lang=l;saveSetting('lang',l);applyLang();}
+
+// ════════════════════════════════
+// TONES
+// ════════════════════════════════
+const TONES={
+  click:{label:{ja:'クリック',en:'Click'},accent:[1100,0.065],normal:[750,0.065],sub:[1350,0.04]},
+  wood: {label:{ja:'ウッド',en:'Wood'},  accent:[800,0.08], normal:[600,0.07], sub:[900,0.05]},
+  beep: {label:{ja:'ビープ',en:'Beep'},  accent:[1760,0.04],normal:[1320,0.04],sub:[2000,0.03]},
+  soft: {label:{ja:'ソフト',en:'Soft'},  accent:[660,0.12], normal:[520,0.10], sub:[780,0.07]},
+  clave:{label:{ja:'クラベ',en:'Clave'}, accent:[1200,0.045],normal:[900,0.04],sub:[1400,0.03]},
+};
+let currentTone='click',accentVol=1.0,subVol=0.30;
+let ptToneA='click',ptToneB='wood';
+
+function renderToneChips(){
+  const row=document.getElementById('toneChips');if(!row)return;row.innerHTML='';
+  Object.entries(TONES).forEach(([key,tone])=>{
+    const c=document.createElement('button');c.className='tone-chip'+(key===currentTone?' active':'');
+    c.textContent=tone.label[lang]||tone.label.ja;
+    c.onclick=()=>{currentTone=key;saveSetting('tone',key);renderToneChips();previewTone(key);};
+    row.appendChild(c);
+  });
+}
+function previewTone(key){
+  initAudio();const tone=TONES[key],now=audioCtx.currentTime;
+  _playTone(tone.accent[0],accentVol*0.5,now,tone.accent[1]);
+  _playTone(tone.normal[0],accentVol*0.3,now+0.18,tone.normal[1]);
+}
+document.getElementById('sliderAccentVol').addEventListener('input',e=>{accentVol=+e.target.value/100;document.getElementById('volAccentNum').textContent=e.target.value+'%';saveSetting('accentVol',accentVol);});
+document.getElementById('sliderSubVol').addEventListener('input',e=>{subVol=+e.target.value/100;document.getElementById('volSubNum').textContent=e.target.value+'%';saveSetting('subVol',subVol);});
+
+function renderPtToneChips(trackId){
+  const row=document.getElementById(`ptToneRow-${trackId}`);if(!row)return;
+  const cur=trackId===0?ptToneA:ptToneB;
+  const tr=ptTracks.find(x=>x.id===trackId);row.innerHTML='';
+  Object.entries(TONES).forEach(([key,tone])=>{
+    const c=document.createElement('button');c.className='pt-tone-chip';
+    const active=key===cur;
+    c.style.borderColor=active?tr.color:'var(--border)';c.style.background=active?tr.color:'var(--dot-off)';c.style.color=active?'#fff':'var(--muted)';
+    c.textContent=tone.label[lang]||tone.label.ja;
+    c.onclick=()=>{if(trackId===0)ptToneA=key;else ptToneB=key;saveSetting(`ptTone${trackId}`,key);renderPtToneChips(trackId);previewTone(key);};
+    row.appendChild(c);
+  });
+}
+
+// ════════════════════════════════
+// WAKE LOCK
+// ════════════════════════════════
+let wakeLock=null;
+async function handleWakeLock(enabled){
+  saveSetting('wake',enabled);
+  if(enabled){try{if('wakeLock' in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}}
+  else{if(wakeLock){wakeLock.release();wakeLock=null;}}
+}
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState==='visible'&&document.getElementById('toggleWake')?.checked)
+    try{if('wakeLock' in navigator)wakeLock=await navigator.wakeLock.request('screen');}catch(e){}
+});
+function vibrate(isAccent){if(!document.getElementById('toggleVib')?.checked||!navigator.vibrate)return;navigator.vibrate(isAccent?30:12);}
+
+function saveSetting(k,v){try{localStorage.setItem('metro_'+k,JSON.stringify(v));}catch(e){}}
+function loadSetting(k,def){try{const v=localStorage.getItem('metro_'+k);return v!==null?JSON.parse(v):def;}catch(e){return def;}}
+function loadSettings(){
+  lang=loadSetting('lang','ja');
+  document.getElementById('toggleVib').checked=loadSetting('vib',false);
+  const wake=loadSetting('wake',true);document.getElementById('toggleWake').checked=wake;if(wake)handleWakeLock(true);
+  currentTone=loadSetting('tone','click');
+  ptToneA=loadSetting('ptTone0','click');ptToneB=loadSetting('ptTone1','wood');
+  accentVol=loadSetting('accentVol',1.0);subVol=loadSetting('subVol',0.30);
+  const avP=Math.round(accentVol*100),svP=Math.round(subVol*100);
+  document.getElementById('sliderAccentVol').value=avP;document.getElementById('volAccentNum').textContent=avP+'%';
+  document.getElementById('sliderSubVol').value=svP;document.getElementById('volSubNum').textContent=svP+'%';
+}
+
+// ════════════════════════════════
+// COLORS
+// ════════════════════════════════
+const LAYER_COLORS=[
+  {color:'#2d5a8e',bg:'#ddeaf8',shadow:'rgba(45,90,142,0.22)'},
+  {color:'#7a3b8e',bg:'#f0e4f8',shadow:'rgba(122,59,142,0.22)'},
+  {color:'#2e7d4f',bg:'#ddf0e8',shadow:'rgba(46,125,79,0.22)'},
+  {color:'#b5591a',bg:'#fde8d4',shadow:'rgba(181,89,26,0.22)'},
+  {color:'#8e2d2d',bg:'#f8dede',shadow:'rgba(142,45,45,0.22)'},
+];
+const PT_COLORS=[
+  {color:'#2d5a8e',bg:'#ddeaf8',shadow:'rgba(45,90,142,0.22)'},
+  {color:'#7a3b8e',bg:'#f0e4f8',shadow:'rgba(122,59,142,0.22)'},
+];
+
+// ════════════════════════════════
+// CORE STATE
+// ════════════════════════════════
+let bpm=120,isPlaying=false,audioCtx=null,currentTab='simple',tapTimes=[];
+let schedulerHandle=null,nextNoteTime=0,masterTick=0;
+const BPM_MIN=1,BPM_MAX=500,LOOK_AHEAD=0.12,SCHEDULE_INT=25;
+
+function initAudio(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();}
+function _playTone(freq,vol,t,dur){
+  if(vol<=0)return;
+  const osc=audioCtx.createOscillator(),gain=audioCtx.createGain();
+  osc.connect(gain);gain.connect(audioCtx.destination);
+  osc.frequency.value=freq;gain.gain.setValueAtTime(vol,t);gain.gain.exponentialRampToValueAtTime(0.001,t+dur);
+  osc.start(t);osc.stop(t+dur+0.01);
+}
+function scheduleClick(type,t2,toneKey){
+  const tone=TONES[toneKey||currentTone]||TONES.click;
+  if(type==='accent')_playTone(tone.accent[0],accentVol*0.52,t2,tone.accent[1]);
+  else if(type==='normal')_playTone(tone.normal[0],accentVol*0.30,t2,tone.normal[1]);
+  else _playTone(tone.sub[0],subVol*0.5,t2,tone.sub[1]);
+}
+function getLCM(a,b){let x=a,y=b;while(y){[x,y]=[y,x%y];}return a*b/x;}
+function gcd(a,b){while(b){[a,b]=[b,a%b];}return a;}
+
+// ════════════════════════════════
+// BPM
+// ════════════════════════════════
+function getSliderConfig(){return currentTab==='poly'?{min:1,max:100}:{min:40,max:300};}
+function setBpm(v){
+  bpm=Math.max(1,Math.min(BPM_MAX,Math.round(+v)||bpm));
+  document.getElementById('bpmNum').textContent=bpm;
+  const sl=document.getElementById('bpmSlider');
+  sl.value=Math.min(Math.max(bpm,+sl.min),+sl.max);
+}
+function changeBpm(d){setBpm(bpm+d);}
+document.getElementById('bpmSlider').addEventListener('input',e=>setBpm(+e.target.value));
+function updateSlider(){
+  const{min,max}=getSliderConfig();
+  const sl=document.getElementById('bpmSlider');
+  sl.min=min;sl.max=max;
+  document.getElementById('sliderMinLbl').textContent=min;
+  document.getElementById('sliderMaxLbl').textContent=max;
+  bpm=Math.min(Math.max(bpm,min),max);
+  document.getElementById('bpmNum').textContent=bpm;sl.value=bpm;
+}
+function startBpmEdit(){
+  const numEl=document.getElementById('bpmNum');
+  const inp=document.createElement('input');inp.type='number';inp.className='bpm-input-el';inp.value=bpm;inp.min=1;inp.max=BPM_MAX;
+  numEl.replaceWith(inp);inp.select();
+  function commit(){
+    const val=Math.max(1,Math.min(BPM_MAX,parseInt(inp.value)||bpm));
+    const div=document.createElement('div');div.className='bpm-number';div.id='bpmNum';div.textContent=val;div.onclick=startBpmEdit;
+    inp.replaceWith(div);setBpm(val);
+  }
+  inp.addEventListener('blur',commit);
+  inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=bpm;inp.blur();}});
+}
+function tapTempo(){
+  const now=Date.now();tapTimes.push(now);if(tapTimes.length>8)tapTimes.shift();
+  if(tapTimes.length>=2){const diffs=[];for(let i=1;i<tapTimes.length;i++)diffs.push(tapTimes[i]-tapTimes[i-1]);setBpm(Math.round(60000/(diffs.reduce((a,b)=>a+b,0)/diffs.length)));}
+  setTimeout(()=>{if(tapTimes.length&&Date.now()-tapTimes[tapTimes.length-1]>2200)tapTimes=[];},2300);
+}
+
+// ════════════════════════════════
+// TAB
+// ════════════════════════════════
+function switchTab(tab){
+  if(isPlaying)togglePlay();
+  currentTab=tab;
+  ['simple','poly','pt'].forEach(t=>{
+    const el=document.getElementById('tab'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(el)el.className='tab-btn'+(tab===t?' active':'');
+    document.getElementById(t==='simple'?'simplePanel':t==='poly'?'polyPanel':'ptPanel').style.display=tab===t?'flex':'none';
+    const aid=document.getElementById('action'+t.charAt(0).toUpperCase()+t.slice(1));
+    if(aid)aid.style.display=tab===t?'grid':'none';
+  });
+  document.getElementById('settingsPanel').style.display=tab==='settings'?'flex':'none';
+  document.getElementById('settingsGear').className='gear-btn'+(tab==='settings'?' active':'');
+  document.getElementById('sharedBpmCard').style.display=(tab==='pt'||tab==='settings')?'none':'flex';
+  if(tab!=='pt'&&tab!=='settings')updateSlider();
+  if(tab==='poly')renderViz();
+  if(tab==='pt')updatePtRatio();
+}
+
+// ════════════════════════════════
+// PLAY
+// ════════════════════════════════
+function getMasterSubsPerBeat(){
+  if(currentTab==='simple')return sSub;
+  if(currentTab==='poly'){if(!layers.length)return 1;return layers.reduce((acc,l)=>getLCM(acc,l.subdivision),1);}
+  return 1;
+}
+function scheduler(){
+  if(currentTab==='pt'){schedulerPt();return;}
+  const ms=getMasterSubsPerBeat(),mi=(60/bpm)/ms;
+  while(nextNoteTime<audioCtx.currentTime+LOOK_AHEAD){
+    const t2=nextNoteTime,tick=masterTick;
+    if(currentTab==='simple'){
+      const ratio=ms/sSub;
+      if(tick%ratio===0){
+        const total=Math.round(tick/ratio),si=total%sSub,bi=Math.floor(total/sSub)%sBeats,mode=sBeatModes[bi];
+        if(mode!=='mute')scheduleClick(si===0?(mode==='accent'?'accent':'normal'):'sub',t2);
+        const delay=Math.max(0,(t2-audioCtx.currentTime)*1000);
+        ((bi,si,mode)=>setTimeout(()=>{if(!isPlaying)return;if(si===0){flashBpm();swingPendulum();vibrate(mode==='accent');}renderSimpleBeatGrid(bi,si);},delay))(bi,si,mode);
+      }
+    } else {
+      layers.forEach(layer=>{
+        if(layer.muted)return;
+        const ratio=ms/layer.subdivision;if(tick%ratio!==0)return;
+        const total=Math.round(tick/ratio),si=total%layer.subdivision,bi=Math.floor(total/layer.subdivision)%layer.beats,mode=layer.modes[bi];
+        if(mode!=='mute')scheduleClick(si===0?(mode==='accent'?'accent':'normal'):'sub',t2);
+        const delay=Math.max(0,(t2-audioCtx.currentTime)*1000);
+        ((lid,bi,si,mode)=>setTimeout(()=>{if(!isPlaying)return;const l=layers.find(x=>x.id===lid);if(!l)return;updatePolyBeatCell(l,bi,si);updateVizCell(lid,bi,si);if(lid===layers[0]?.id&&si===0){flashBpm();swingPendulum();vibrate(mode==='accent');}},delay))(layer.id,bi,si,mode);
+      });
+    }
+    nextNoteTime+=mi;masterTick++;
+  }
+}
+function startMetronome(){
+  if(schedulerHandle){clearInterval(schedulerHandle);schedulerHandle=null;}
+  masterTick=0;nextNoteTime=audioCtx.currentTime+0.05;
+  if(currentTab==='pt'){ptNextA=nextNoteTime;ptNextB=nextNoteTime;ptBeatA=0;ptBeatB=0;}
+  schedulerHandle=setInterval(scheduler,SCHEDULE_INT);
+}
+function stopMetronome(){
+  if(schedulerHandle){clearInterval(schedulerHandle);schedulerHandle=null;}
+  renderSimpleBeatGrid(-1,-1);
+  layers.forEach(l=>{updatePolyBeatCell(l,-1,-1);updateVizCell(l.id,-1,-1);});
+  document.getElementById('pendLine').className='pend-line';
+  ptResetViz();
+}
+function togglePlay(){
+  initAudio();if(audioCtx.state==='suspended')audioCtx.resume();
+  isPlaying=!isPlaying;
+  ['playBtn','playBtnPoly','playBtnPt'].forEach(id=>{const b=document.getElementById(id);if(!b)return;b.textContent=isPlaying?t('stop'):t('start');isPlaying?b.classList.add('playing'):b.classList.remove('playing');});
+  isPlaying?startMetronome():stopMetronome();
+}
+
+// ════════════════════════════════
+// VISUAL
+// ════════════════════════════════
+function flashBpm(){const el=document.getElementById('bpmNum');if(!el)return;el.classList.add('flash');setTimeout(()=>el&&el.classList.remove('flash'),60);}
+let pendDir=1;
+function swingPendulum(){const line=document.getElementById('pendLine');if(!line)return;line.className='pend-line';void line.offsetWidth;line.className='pend-line '+(pendDir>0?'go-right':'go-left');pendDir*=-1;}
+
+// ════════════════════════════════
+// SIMPLE
+// ════════════════════════════════
+const SIMPLE_SUBS=[{n:1,label:'♩ 1'},{n:2,label:'♪ 2'},{n:3,label:'♪ 3'},{n:4,label:'♪ 4'},{n:5,label:'♪ 5'},{n:6,label:'♪ 6'},{n:7,label:'♪ 7'},{n:8,label:'♪ 8'},{n:9,label:'♪ 9'}];
+const MODE_ORDER=['accent','normal','mute'];
+const MODE_ICON={accent:'●',normal:'○',mute:'—'};
+let sBeats=4,sSub=1,sBeatModes=['accent','normal','normal','normal'];
+
+function renderSimpleSubs(){
+  const row=document.getElementById('simpleSubRow');row.innerHTML='';
+  SIMPLE_SUBS.forEach(s=>{const c=document.createElement('button');c.className='sub-chip'+(s.n===sSub?' active':'');c.textContent=s.label;c.onclick=()=>{sSub=s.n;renderSimpleSubs();renderSimpleBeatGrid(-1,-1);};row.appendChild(c);});
+}
+function renderSimpleBeatGrid(ab,as){
+  const grid=document.getElementById('simpleBeatGrid'),sd=sSub>1;
+  if(grid.children.length!==sBeats){grid.innerHTML='';document.getElementById('sBeatCount').textContent=sBeats;for(let i=0;i<sBeats;i++)grid.appendChild(makeSimpleBeatCell(i,ab,as,sd));return;}
+  for(let i=0;i<sBeats;i++)updateSimpleBeatCell(i,ab,as,sd);
+}
+function makeSimpleBeatCell(i,ab,as,sd){
+  const cell=document.createElement('div');cell.className='beat-cell';
+  const btn=document.createElement('button');btn.id=`sb-${i}`;btn.className='beat-btn '+sGetBtnClass(i,i===ab);
+  btn.innerHTML=`<span class="beat-icon">${MODE_ICON[sBeatModes[i]]}</span><span class="beat-idx">${i+1}</span>`;
+  btn.onclick=()=>{sBeatModes[i]=MODE_ORDER[(MODE_ORDER.indexOf(sBeatModes[i])+1)%3];renderSimpleBeatGrid(-1,-1);};
+  cell.appendChild(btn);
+  const dots=document.createElement('div');dots.id=`sd-${i}`;dots.className='sdots'+(sd?'':' hidden');
+  for(let s=0;s<sSub;s++){const d=document.createElement('div');d.id=`sdot-${i}-${s}`;d.className='sdot';const on=(i===ab&&s===as);d.style.background=on?'#1a1a1a':'#ece9e3';d.style.border=`1px solid ${on?'#1a1a1a':'#e2ddd6'}`;dots.appendChild(d);}
+  cell.appendChild(dots);return cell;
+}
+function updateSimpleBeatCell(i,ab,as,sd){
+  const btn=document.getElementById(`sb-${i}`);if(!btn)return;
+  btn.className='beat-btn '+sGetBtnClass(i,i===ab);
+  btn.innerHTML=`<span class="beat-icon">${MODE_ICON[sBeatModes[i]]}</span><span class="beat-idx">${i+1}</span>`;
+  const dw=document.getElementById(`sd-${i}`);if(!dw)return;
+  dw.className='sdots'+(sd?'':' hidden');
+  if(dw.children.length!==sSub){dw.innerHTML='';for(let s=0;s<sSub;s++){const d=document.createElement('div');d.id=`sdot-${i}-${s}`;d.className='sdot';const on=(i===ab&&s===as);d.style.background=on?'#1a1a1a':'#ece9e3';d.style.border=`1px solid ${on?'#1a1a1a':'#e2ddd6'}`;dw.appendChild(d);}return;}
+  for(let s=0;s<sSub;s++){const d=document.getElementById(`sdot-${i}-${s}`);if(!d)continue;const on=(i===ab&&s===as);d.style.background=on?'#1a1a1a':'#ece9e3';d.style.border=`1px solid ${on?'#1a1a1a':'#e2ddd6'}`;}
+}
+function sGetBtnClass(i,active){return active?'sp-'+sBeatModes[i]:'s-'+sBeatModes[i];}
+function sChangeBeats(d){const next=Math.max(1,Math.min(16,sBeats+d));if(next===sBeats)return;sBeats=next;while(sBeatModes.length<sBeats)sBeatModes.push('normal');sBeatModes=sBeatModes.slice(0,sBeats);renderSimpleBeatGrid(-1,-1);}
+
+// ════════════════════════════════
+// POLY
+// ════════════════════════════════
+let layers=[],nextLayerId=0,vizActive={};
+function createLayer(beats=4,sub=1){const id=nextLayerId++;const col=LAYER_COLORS[id%LAYER_COLORS.length];return{id,beats,modes:Array.from({length:beats},(_,i)=>i===0?'accent':'normal'),subdivision:sub,muted:false,...col};}
+function addLayer(){if(layers.length>=5)return;layers.push(createLayer(4,[1,2,3,4,5,7][layers.length]??1));renderPolyLayers();renderViz();}
+function removeLayer(id){layers=layers.filter(l=>l.id!==id);delete vizActive[id];renderPolyLayers();renderViz();}
+function toggleLayerMute(id){const l=layers.find(l=>l.id===id);if(l){l.muted=!l.muted;renderPolyLayers();}}
+function setLayerSub(id,n){const l=layers.find(l=>l.id===id);if(!l)return;l.subdivision=n;renderPolyLayer(l);renderViz();}
+function changeLayerBeats(id,d){const l=layers.find(l=>l.id===id);if(!l)return;const next=Math.max(1,Math.min(16,l.beats+d));if(next===l.beats)return;l.beats=next;while(l.modes.length<next)l.modes.push('normal');l.modes=l.modes.slice(0,next);renderPolyLayer(l);renderViz();}
+function cyclePolyMode(id,bi){const l=layers.find(l=>l.id===id);if(!l)return;l.modes[bi]=MODE_ORDER[(MODE_ORDER.indexOf(l.modes[bi])+1)%3];renderPolyLayer(l);renderViz();}
+
+function renderViz(){
+  const container=document.getElementById('vizContainer');container.innerHTML='';if(!layers.length)return;
+  layers.forEach(l=>{
+    const row=document.createElement('div');row.className='viz-layer-row';
+    const nameEl=document.createElement('div');nameEl.className='viz-layer-name';nameEl.style.color=l.color;nameEl.textContent=`L${l.id+1}`;row.appendChild(nameEl);
+    const track=document.createElement('div');track.className='viz-track';track.id=`vtrack-${l.id}`;
+    const lc=l.beats*l.subdivision,av=vizActive[l.id]||{bi:-1,si:-1};
+    for(let c=0;c<lc;c++){
+      const bi=Math.floor(c/l.subdivision),si=c%l.subdivision,mode=l.modes[bi],isActive=(av.bi===bi&&av.si===si);
+      const cell=document.createElement('div');cell.className='viz-cell';cell.style.left=`${(c/lc)*100}%`;cell.style.width=`${(1/lc)*100}%`;cell.id=`vcell-${l.id}-${c}`;setCellBg(cell,l,mode,isActive);
+      if(si===0){const dot=document.createElement('div');dot.className='viz-dot'+(isActive?' show':'');dot.style.background='rgba(255,255,255,0.88)';cell.appendChild(dot);}
+      if(si>0&&l.subdivision>1){const tick=document.createElement('div');tick.className='viz-sub-tick';cell.appendChild(tick);}
+      track.appendChild(cell);
+    }
+    if(l.muted){const ov=document.createElement('div');ov.style.cssText='position:absolute;inset:0;background:rgba(255,255,255,0.55);border-radius:8px;';track.appendChild(ov);}
+    row.appendChild(track);container.appendChild(row);
+  });
+}
+function setCellBg(cell,l,mode,isActive){cell.style.background=isActive?(mode==='accent'?l.color:mode==='normal'?l.color+'a0':'transparent'):(mode==='accent'?'rgba(0,0,0,0.09)':mode==='normal'?'rgba(0,0,0,0.03)':'transparent');}
+function updateVizCell(lid,bi,si){const l=layers.find(l=>l.id===lid);if(!l)return;vizActive[lid]={bi,si};const lc=l.beats*l.subdivision;for(let c=0;c<lc;c++){const b=Math.floor(c/l.subdivision),s=c%l.subdivision,mode=l.modes[b],isActive=(b===bi&&s===si);const cell=document.getElementById(`vcell-${l.id}-${c}`);if(!cell)continue;setCellBg(cell,l,mode,isActive);const dot=cell.querySelector('.viz-dot');if(dot)dot.className='viz-dot'+(isActive?' show':'');}}
+function renderPolyLayers(){const c=document.getElementById('polyLayers');c.innerHTML='';layers.forEach(l=>c.appendChild(buildLayerCard(l)));}
+function buildLayerCard(l){
+  const card=document.createElement('div');card.className='layer-card';card.id='lcard-'+l.id;card.style.borderColor=l.muted?'var(--border)':l.color;
+  const hdr=document.createElement('div');hdr.className='layer-header';
+  hdr.innerHTML=`<div class="layer-color-bar" style="background:${l.color}"></div><div class="layer-title" style="color:${l.color}">${t('layerLabel')} ${l.id+1}</div><div class="layer-header-btns"><button class="icon-btn${l.muted?' on':''}" onclick="toggleLayerMute(${l.id})">⊘</button><button class="icon-btn" onclick="removeLayer(${l.id})">✕</button></div>`;
+  card.appendChild(hdr);
+  const body=document.createElement('div');body.className='layer-body';
+  const subLbl=document.createElement('div');subLbl.className='card-label';subLbl.textContent=t('subdivision');body.appendChild(subLbl);
+  const subRow=document.createElement('div');subRow.className='poly-sub-scroll';
+  SIMPLE_SUBS.forEach(s=>{const c=document.createElement('button');const active=s.n===l.subdivision;c.className='poly-sub-chip';c.style.borderColor=active?l.color:'var(--border)';c.style.background=active?l.color:'var(--dot-off)';c.style.color=active?'#fff':'var(--muted)';c.textContent=s.label;c.onclick=()=>setLayerSub(l.id,s.n);subRow.appendChild(c);});
+  body.appendChild(subRow);
+  const beatLbl=document.createElement('div');beatLbl.className='card-label';beatLbl.textContent=t('beatPatternShort');body.appendChild(beatLbl);
+  const grid=document.createElement('div');grid.className='poly-beat-grid';grid.id='pg-'+l.id;buildPolyBeatGrid(l,grid,-1,-1);body.appendChild(grid);
+  const bcRow=document.createElement('div');bcRow.className='poly-beat-count-row';bcRow.innerHTML=`<span class="poly-count-label">${t('beatCount')}</span><button class="cnt-btn" onclick="changeLayerBeats(${l.id},-1)">−</button><span class="cnt-disp">${l.beats}</span><button class="cnt-btn" onclick="changeLayerBeats(${l.id},1)">+</button>`;
+  body.appendChild(bcRow);card.appendChild(body);return card;
+}
+function polyBeatBtnStyle(l,mode,isActive){if(isActive){if(mode==='accent')return `background:${l.color};border-color:${l.color};box-shadow:0 0 0 3px ${l.shadow};`;if(mode==='normal')return `background:#222;border-color:#222;`;return `background:#e0ddd8;border-color:#ccc;`;}if(mode==='accent')return `background:${l.bg};border-color:${l.color};`;if(mode==='mute')return `background:#fff;border-color:#e8e4de;`;return `background:var(--dot-off);border-color:var(--border);`;}
+function polyBeatIconColor(l,mode,isActive){if(isActive)return mode==='mute'?'#999':'#fff';if(mode==='accent')return l.color;if(mode==='mute')return '#ccc';return '#bbb';}
+function buildPolyBeatGrid(l,grid,ab,as){
+  grid.innerHTML='';const sd=l.subdivision>1;
+  for(let i=0;i<l.beats;i++){
+    const cell=document.createElement('div');cell.className='poly-beat-cell';
+    const btn=document.createElement('button');btn.id=`pb-${l.id}-${i}`;btn.className='poly-beat-btn';
+    const mode=l.modes[i],isA=i===ab;btn.style.cssText=polyBeatBtnStyle(l,mode,isA);
+    btn.innerHTML=`<span style="color:${polyBeatIconColor(l,mode,isA)};font-size:12px;line-height:1;">${MODE_ICON[mode]}</span><span style="font-size:8px;color:${isA?'rgba(255,255,255,0.65)':'var(--muted)'}">${i+1}</span>`;
+    btn.onclick=()=>cyclePolyMode(l.id,i);cell.appendChild(btn);
+    const dots=document.createElement('div');dots.className='poly-sdots'+(sd?'':' hidden');
+    for(let s=0;s<l.subdivision;s++){const d=document.createElement('div');d.id=`psdot-${l.id}-${i}-${s}`;d.className='poly-sdot';const on=(isA&&s===as);d.style.background=on?l.color:'#ece9e3';d.style.border=`1px solid ${on?l.color:'#e2ddd6'}`;dots.appendChild(d);}
+    dots.id=`psd-${l.id}-${i}`;cell.appendChild(dots);grid.appendChild(cell);
+  }
+}
+function updatePolyBeatCell(l,ab,as){
+  const sd=l.subdivision>1;
+  for(let i=0;i<l.beats;i++){
+    const btn=document.getElementById(`pb-${l.id}-${i}`);if(!btn)continue;
+    const mode=l.modes[i],isA=i===ab;btn.style.cssText=polyBeatBtnStyle(l,mode,isA);
+    btn.innerHTML=`<span style="color:${polyBeatIconColor(l,mode,isA)};font-size:12px;line-height:1;">${MODE_ICON[mode]}</span><span style="font-size:8px;color:${isA?'rgba(255,255,255,0.65)':'var(--muted)'}">${i+1}</span>`;
+    const dw=document.getElementById(`psd-${l.id}-${i}`);if(dw)dw.className='poly-sdots'+(sd?'':' hidden');
+    for(let s=0;s<l.subdivision;s++){const d=document.getElementById(`psdot-${l.id}-${i}-${s}`);if(!d)continue;const on=(isA&&s===as);d.style.background=on?l.color:'#ece9e3';d.style.border=`1px solid ${on?l.color:'#e2ddd6'}`;}
+  }
+}
+function renderPolyLayer(l){const ex=document.getElementById('lcard-'+l.id);if(!ex)return;ex.replaceWith(buildLayerCard(l));}
+
+// ════════════════════════════════
+// POLYTEMPO
+// ════════════════════════════════
+let ptTracks=[
+  {id:0,bpm:120,beats:4,muted:false,accent:true,...PT_COLORS[0]},
+  {id:1,bpm:80, beats:3,muted:false,accent:true,...PT_COLORS[1]},
+];
+let ptNextA=0,ptNextB=0,ptBeatA=0,ptBeatB=0,ptTapTimes=[];
+
+function ptSetBpm(id,v){
+  const tr=ptTracks.find(x=>x.id===id);if(!tr)return;
+  const nv=Math.max(1,Math.min(BPM_MAX,Math.round(+v)||tr.bpm));
+  if(nv===tr.bpm)return;
+  if(isPlaying)togglePlay();
+  tr.bpm=nv;
+  const el=document.getElementById(`ptBpmNum-${id}`);if(el)el.textContent=tr.bpm;
+  const sl=document.getElementById(`ptSlider-${id}`);if(sl)sl.value=Math.min(tr.bpm,300);
+  updatePtRatio();
+}
+function ptChangeBpm(id,d){ptSetBpm(id,(ptTracks.find(x=>x.id===id)?.bpm||120)+d);}
+function ptStartBpmEdit(id){
+  const numEl=document.getElementById(`ptBpmNum-${id}`);if(!numEl)return;
+  const tr=ptTracks.find(x=>x.id===id);
+  const inp=document.createElement('input');inp.type='number';inp.className='pt-bpm-input';inp.value=tr.bpm;inp.min=1;inp.max=BPM_MAX;inp.style.color=tr.color;
+  numEl.replaceWith(inp);inp.select();
+  function commit(){const val=Math.max(1,Math.min(BPM_MAX,parseInt(inp.value)||tr.bpm));const div=document.createElement('div');div.className='pt-bpm-num';div.id=`ptBpmNum-${id}`;div.style.color=tr.color;div.textContent=val;div.onclick=()=>ptStartBpmEdit(id);inp.replaceWith(div);ptSetBpm(id,val);}
+  inp.addEventListener('blur',commit);inp.addEventListener('keydown',e=>{if(e.key==='Enter')inp.blur();if(e.key==='Escape'){inp.value=tr.bpm;inp.blur();}});
+}
+function ptToggleMute(id){const tr=ptTracks.find(x=>x.id===id);if(tr){tr.muted=!tr.muted;renderPtTracks();}}
+function ptToggleAccent(id){const tr=ptTracks.find(x=>x.id===id);if(tr){tr.accent=!tr.accent;renderPtTracks();}}
+function ptChangeBeats(id,d){const tr=ptTracks.find(x=>x.id===id);if(!tr)return;tr.beats=Math.max(1,Math.min(16,tr.beats+d));if(isPlaying)togglePlay();renderPtTracks();updatePtRatio();}
+function ptTap(){
+  const now=Date.now();ptTapTimes.push(now);if(ptTapTimes.length>8)ptTapTimes.shift();
+  if(ptTapTimes.length>=2){const diffs=[];for(let i=1;i<ptTapTimes.length;i++)diffs.push(ptTapTimes[i]-ptTapTimes[i-1]);ptSetBpm(0,Math.round(60000/(diffs.reduce((a,b)=>a+b,0)/diffs.length)));}
+  setTimeout(()=>{if(ptTapTimes.length&&Date.now()-ptTapTimes[ptTapTimes.length-1]>2200)ptTapTimes=[];},2300);
+}
+function updatePtRatio(){
+  const a=ptTracks[0].bpm,b=ptTracks[1].bpm,g=gcd(a,b);
+  document.getElementById('ptRatioValue').textContent=`${a/g} : ${b/g}`;
+  if(a===b)document.getElementById('ptRatioNote').textContent=t('sameTemp');
+  else{const f=a>b?'A':'B',s=a>b?'B':'A',r=(Math.max(a,b)/Math.min(a,b)).toFixed(2);document.getElementById('ptRatioNote').textContent=lang==='ja'?`${f} ${t('faster')} ${s} ${t('fasterB')} ${r}${t('times')}`:`${f} ${t('faster')} ${r}${t('times')} ${t('fasterB')} ${s}`;}
+}
+function renderPtTracks(){
+  const c=document.getElementById('ptTracks');c.innerHTML='';
+  ptTracks.forEach(tr=>c.appendChild(buildPtCard(tr)));
+  ptTracks.forEach(tr=>renderPtToneChips(tr.id));
+}
+function buildPtCard(tr){
+  const card=document.createElement('div');card.className='pt-track';card.id='ptcard-'+tr.id;card.style.borderColor=tr.muted?'var(--border)':tr.color;
+  const hdr=document.createElement('div');hdr.className='pt-track-header';
+  const accentActive=tr.accent;
+  const accentStyle=accentActive?`background:${tr.color};border-color:${tr.color};color:#fff;`:'';
+  hdr.innerHTML=`<div class="pt-color-bar" style="background:${tr.color}"></div><div class="pt-track-name" style="color:${tr.color}">${t('trackLabel')} ${['A','B'][tr.id]}</div><div class="pt-hdr-btns"><button class="pt-icon-btn" style="${accentStyle}" onclick="ptToggleAccent(${tr.id})" title="Accent">●</button><button class="pt-icon-btn${tr.muted?' on-mute':''}" onclick="ptToggleMute(${tr.id})">⊘</button></div>`;
+  card.appendChild(hdr);
+  const body=document.createElement('div');body.className='pt-track-body';
+  const bpmRow=document.createElement('div');bpmRow.className='pt-bpm-row';
+  const bpmNum=document.createElement('div');bpmNum.className='pt-bpm-num';bpmNum.id=`ptBpmNum-${tr.id}`;bpmNum.style.color=tr.muted?'var(--muted)':tr.color;bpmNum.textContent=tr.bpm;bpmNum.onclick=()=>ptStartBpmEdit(tr.id);
+  bpmRow.appendChild(bpmNum);const unit=document.createElement('div');unit.className='pt-bpm-unit';unit.textContent='BPM';bpmRow.appendChild(unit);body.appendChild(bpmRow);
+  const slWrap=document.createElement('div');slWrap.className='pt-slider-wrap';
+  const slHdr=document.createElement('div');slHdr.className='pt-slider-header';slHdr.innerHTML='<span>1</span><span>BPM</span><span>300</span>';slWrap.appendChild(slHdr);
+  const sl=document.createElement('input');sl.type='range';sl.id=`ptSlider-${tr.id}`;sl.min=1;sl.max=300;sl.value=Math.min(tr.bpm,300);sl.addEventListener('input',e=>ptSetBpm(tr.id,+e.target.value));slWrap.appendChild(sl);body.appendChild(slWrap);
+  const adjRow=document.createElement('div');adjRow.className='pt-adj-btns';
+  [[-10,'−10'],[-1,'−1'],[1,'+1'],[10,'+10']].forEach(([d,lbl])=>{const b=document.createElement('button');b.className='pt-adj-btn';b.textContent=lbl;b.onclick=()=>ptChangeBpm(tr.id,d);adjRow.appendChild(b);});
+  body.appendChild(adjRow);
+  const toneLbl=document.createElement('div');toneLbl.className='card-label';toneLbl.textContent=t('toneChipLabel');body.appendChild(toneLbl);
+  const toneRow=document.createElement('div');toneRow.className='pt-tone-row';toneRow.id=`ptToneRow-${tr.id}`;body.appendChild(toneRow);
+  const beatLbl=document.createElement('div');beatLbl.className='card-label';beatLbl.style.marginTop='2px';beatLbl.textContent=t('beatPatternShort');body.appendChild(beatLbl);
+  const beatBar=document.createElement('div');beatBar.className='pt-beat-bar';beatBar.id=`ptBeats-${tr.id}`;
+  for(let i=0;i<tr.beats;i++){const d=document.createElement('div');d.className='pt-beat-dot';d.id=`ptdot-${tr.id}-${i}`;const isAcc=i===0&&tr.accent;d.style.background=isAcc?tr.color:'var(--dot-off)';d.style.borderColor=isAcc?tr.color:'var(--border)';beatBar.appendChild(d);}
+  body.appendChild(beatBar);
+  const bcRow=document.createElement('div');bcRow.className='pt-beat-count-row';bcRow.innerHTML=`<span class="pt-count-label">${t('beatCount')}</span><button class="cnt-btn" onclick="ptChangeBeats(${tr.id},-1)">−</button><span class="cnt-disp">${tr.beats}</span><button class="cnt-btn" onclick="ptChangeBeats(${tr.id},1)">+</button>`;
+  body.appendChild(bcRow);card.appendChild(body);return card;
+}
+function schedulerPt(){
+  const now=audioCtx.currentTime;
+  ptTracks.forEach((tr,idx)=>{
+    const interval=60/tr.bpm,toneKey=idx===0?ptToneA:ptToneB;
+    let next=idx===0?ptNextA:ptNextB,beat=idx===0?ptBeatA:ptBeatB;
+    while(next<now+LOOK_AHEAD){
+      if(!tr.muted)scheduleClick((beat===0&&tr.accent)?'accent':'normal',next,toneKey);
+      const delay=Math.max(0,(next-now)*1000);
+      ((bi,tid,clr,shd,acc)=>setTimeout(()=>{
+        if(!isPlaying||currentTab!=='pt')return;
+        const tr2=ptTracks.find(x=>x.id===tid);if(!tr2)return;
+        if(bi===0)vibrate(acc);
+        const el=document.getElementById(`ptBpmNum-${tid}`);if(el){el.style.opacity='0.2';setTimeout(()=>{if(el)el.style.opacity='1';},65);}
+        for(let i=0;i<tr2.beats;i++){
+          const d=document.getElementById(`ptdot-${tid}-${i}`);if(!d)continue;
+          const isAct=(i===bi),isAcc=(i===0&&tr2.accent);
+          d.style.background=isAct||isAcc?clr:'var(--dot-off)';d.style.borderColor=isAct||isAcc?clr:'var(--border)';
+          d.style.transform=isAct?'scale(1.28)':'scale(1)';d.style.boxShadow=isAct?`0 0 0 4px ${shd}`:'none';
+        }
+      },delay))(beat,tr.id,tr.color,tr.shadow,tr.accent);
+      beat=(beat+1)%tr.beats;next+=interval;
+      if(idx===0){ptBeatA=beat;ptNextA=next;}else{ptBeatB=beat;ptNextB=next;}
+    }
+  });
+}
+function ptResetViz(){
+  ptTracks.forEach(tr=>{for(let i=0;i<tr.beats;i++){const d=document.getElementById(`ptdot-${tr.id}-${i}`);if(!d)continue;const isAcc=i===0&&tr.accent;d.style.background=isAcc?tr.color:'var(--dot-off)';d.style.borderColor=isAcc?tr.color:'var(--border)';d.style.transform='scale(1)';d.style.boxShadow='none';}});
+}
+
+// ════════════════════════════════
+// IN-APP PURCHASE (Capacitor連携用スタブ)
+// Capacitor化後に @capacitor-community/in-app-purchases と接続する
+// Product ID は App Store Connect で登録したIDを設定すること
+// ════════════════════════════════
+const IAP_PRODUCT_ID = 'com.yourname.metro.tip_coffee'; // ← 要変更
+
+async function purchaseTip() {
+  const btn = document.getElementById('tipBtn');
+  const status = document.getElementById('tipStatus');
+  if (!btn || !status) return;
+
+  // Capacitor IAPプラグインが存在するか確認
+  if (window.CapacitorInAppPurchases) {
+    try {
+      btn.disabled = true;
+      btn.textContent = t('tipPurchasing');
+      status.textContent = '';
+      const result = await window.CapacitorInAppPurchases.purchase({ productId: IAP_PRODUCT_ID });
+      if (result && result.state === 'purchased') {
+        btn.textContent = t('tipDone');
+        status.textContent = '';
+        // 消耗型IAPは consumeProduct でfinishする
+        await window.CapacitorInAppPurchases.consumeProduct({ productId: IAP_PRODUCT_ID });
+      } else {
+        throw new Error('not purchased');
+      }
+    } catch(e) {
+      btn.disabled = false;
+      btn.textContent = t('tipBtn');
+      status.textContent = t('tipFail');
+    }
+  } else {
+    // Web/プレビュー環境ではデモ表示
+    btn.disabled = true;
+    btn.textContent = t('tipPurchasing');
+    setTimeout(() => {
+      btn.textContent = t('tipDone');
+      btn.disabled = false;
+    }, 1200);
+  }
+}
+
+// tipBtnラベル更新（applyLang内で呼ぶ）
+function updateTipBtn() {
+  const btn = document.getElementById('tipBtn');
+  if (btn && !btn.disabled) btn.textContent = t('tipBtn');
+}
+// ════════════════════════════════
+document.addEventListener('keydown',e=>{
+  if(document.activeElement.tagName==='INPUT')return;
+  if(e.code==='Space'){e.preventDefault();togglePlay();}
+  if(e.code==='ArrowUp')currentTab==='pt'?ptChangeBpm(0,1):changeBpm(1);
+  if(e.code==='ArrowDown')currentTab==='pt'?ptChangeBpm(0,-1):changeBpm(-1);
+  if(e.code==='KeyT')currentTab==='pt'?ptTap():tapTempo();
+});
+
+// ════════════════════════════════
+// INIT
+// ════════════════════════════════
+loadSettings();applyLang();
+renderSimpleSubs();renderSimpleBeatGrid(-1,-1);
+layers.push(createLayer(4,3));layers.push(createLayer(4,2));
+renderPolyLayers();renderPtTracks();updatePtRatio();renderToneChips();
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js');
+</script>
+
+</body>
+</html>
